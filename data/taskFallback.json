@@ -1,0 +1,16 @@
+{
+  "summary": "Break the task into two clear steps.",
+  "description": "Focus on one subject at a time. Take short breaks between each subtask.",
+  "steps": [
+    {
+      "title": "Finish math homework",
+      "description": "Solve the required math problems in order.",
+      "duration": { "hours": 0, "minutes": 20, "seconds": 0 }
+    },
+    {
+      "title": "Finish science homework",
+      "description": "Complete the science reading and questions.",
+      "duration": { "hours": 0, "minutes": 15, "seconds": 0 }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Session Overview",
+  "summary": "You completed key tasks with balanced focus and pacing.",
+  "insights": [
+    "Task pacing stayed consistent across the session.",
+    "Short breaks helped you recover between tasks.",
+    "Consider grouping similar tasks to improve flow."
+  ],
+  "chart": [
+    { "name": "Focus", "value": 78 },
+    { "name": "Accuracy", "value": 84 },
+    { "name": "Momentum", "value": 72 },
+    { "name": "Breaks", "value": 65 }
+  ]
+}
