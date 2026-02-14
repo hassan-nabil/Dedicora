@@ -5,7 +5,7 @@ import taskFallback from "@/data/taskFallback.json"
 
 export const runtime = "nodejs"
 
-const GEMINI_API_KEY = "PASTE_YOUR_GEMINI_KEY"
+const GEMINI_API_KEY = "AIzaSyDrbX3bUw8Cj6TMiOCkgoVJa88cN7hUJbs"
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
 
@@ -31,7 +31,10 @@ export async function POST(request: Request) {
       return NextResponse.json(taskFallback, { status: 200 })
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" },
+    })
 
     const prompt = `You are assisting a productivity app called Dedicora.
 Return JSON only with the following shape:
@@ -45,7 +48,7 @@ Return JSON only with the following shape:
 Task: ${task}
 Mode: ${mode ?? "single"}
 If mode is "single", return one step only.
-Keep durations realistic and short for a demo.`
+Use task difficulty to set realistic durations.`
 
     const result = await model.generateContent(prompt)
     const text = result.response.text()

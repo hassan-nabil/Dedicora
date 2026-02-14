@@ -30,7 +30,10 @@ export async function POST(request: Request) {
       return NextResponse.json(reportFallback, { status: 200 })
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+
+    const totalTasks = tasks.length
+    const completedTasks = tasks.filter((task) => task.done).length
 
     const prompt = `You are generating a productivity report for Dedicora.
 Return JSON only with this shape:
@@ -40,7 +43,10 @@ Return JSON only with this shape:
   "insights": string[],
   "chart": [{ "name": string, "value": number }]
 }
+Total tasks: ${totalTasks}
+Completed tasks: ${completedTasks}
 Tasks: ${JSON.stringify(tasks)}
+Use completion and duration patterns to create insights.
 Create a bar-chart friendly data series in chart, with 3-6 items.`
 
     const result = await model.generateContent(prompt)

@@ -20,6 +20,8 @@ export default function TimerPage() {
   const [isRunning, setIsRunning] = React.useState(true)
   const [isFinished, setIsFinished] = React.useState(false)
   const [remaining, setRemaining] = React.useState(0)
+  const [overtime, setOvertime] = React.useState(0)
+  const [countingForward, setCountingForward] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
 
   const currentTask = taskList[currentTaskIndex]
@@ -32,25 +34,39 @@ export default function TimerPage() {
       currentTask.duration.seconds
     )
     setRemaining(initialSeconds)
+    setOvertime(0)
+    setCountingForward(false)
     setIsRunning(true)
     setIsFinished(false)
   }, [currentTask])
 
   React.useEffect(() => {
-    if (!currentTask || !isRunning || isFinished) return
-    if (remaining <= 0) {
-      markTaskDone(currentTaskIndex, true)
-      setIsFinished(true)
-      setIsRunning(false)
-      return
-    }
+    if (!currentTask || !isRunning || countingForward) return
 
     const timer = window.setInterval(() => {
-      setRemaining((prev) => Math.max(prev - 1, 0))
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          markTaskDone(currentTaskIndex, true)
+          setIsFinished(true)
+          setCountingForward(true)
+          return 0
+        }
+        return prev - 1
+      })
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning, isFinished, remaining, currentTaskIndex, currentTask, markTaskDone])
+  }, [isRunning, countingForward, currentTaskIndex, currentTask, markTaskDone])
+
+  React.useEffect(() => {
+    if (!currentTask || !isRunning || !countingForward) return
+
+    const timer = window.setInterval(() => {
+      setOvertime((prev) => prev + 1)
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [isRunning, countingForward, currentTask])
 
   const handlePrev = () => {
     if (currentTaskIndex === 0) return
@@ -63,7 +79,6 @@ export default function TimerPage() {
   }
 
   const handlePauseToggle = () => {
-    if (isFinished) return
     setIsRunning((prev) => !prev)
   }
 
@@ -71,7 +86,6 @@ export default function TimerPage() {
     markTaskDone(currentTaskIndex, true)
     setIsFinished(true)
     setIsRunning(false)
-    setRemaining(0)
   }
 
   const handleReport = () => {
@@ -82,6 +96,9 @@ export default function TimerPage() {
   }
 
   const stickmanState = isFinished ? "done" : isRunning ? "working" : "break"
+  const displayTime = countingForward
+    ? `+${formatTime(overtime)}`
+    : formatTime(remaining)
 
   return (
     <div className="relative min-h-screen bg-hero px-6 py-10">
@@ -127,7 +144,7 @@ export default function TimerPage() {
             </div>
             <div className="flex flex-col items-center gap-8">
               <div className="rounded-4xl border bg-card/70 px-10 py-8 text-6xl font-semibold tracking-[0.15em] text-brand shadow-(--shadow-strong)">
-                {formatTime(remaining)}
+                {displayTime}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <Button

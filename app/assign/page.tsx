@@ -44,33 +44,33 @@ export default function AssignPage() {
 
   React.useEffect(() => {
     setMode(mode)
-    if (mode === "single") {
-      setTasks([
-        {
-          id: "single-task",
-          title: mainTask,
-          description: "Focus on the task and finish it in one session.",
-          duration: defaultDuration,
-        },
-      ])
-      setSummary("One clear focus for this session.")
-      setDescription("Stay present, remove distractions, and finish the task.")
-      return
-    }
 
-    const loadBreakdown = async () => {
+    const loadTasks = async () => {
       setLoading(true)
+      setTasks([])
       try {
         const response = await fetch("/api/gemini/task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ task: mainTask, mode: "breakdown" }),
+          body: JSON.stringify({ task: mainTask, mode }),
         })
         const data = (await response.json()) as GeminiTaskResponse
-        setSummary(data.summary)
-        setDescription(data.description)
+        const steps = data.steps?.length
+          ? data.steps
+          : [
+              {
+                title: mainTask,
+                description: data.description ?? "Focus on this task.",
+                duration: defaultDuration,
+              },
+            ]
+
+        const normalized = mode === "single" ? [steps[0]] : steps
+
+        setSummary(data.summary ?? "")
+        setDescription(data.description ?? "")
         setTasks(
-          data.steps.map((step, index) => ({
+          normalized.map((step, index) => ({
             id: `task-${index}`,
             title: step.title,
             description: step.description,
@@ -80,10 +80,12 @@ export default function AssignPage() {
       } catch {
         const fallback = await import("@/data/taskFallback.json")
         const data = fallback.default as GeminiTaskResponse
+        const normalized = mode === "single" ? [data.steps[0]] : data.steps
+
         setSummary(data.summary)
         setDescription(data.description)
         setTasks(
-          data.steps.map((step, index) => ({
+          normalized.map((step, index) => ({
             id: `task-${index}`,
             title: step.title,
             description: step.description,
@@ -95,7 +97,7 @@ export default function AssignPage() {
       }
     }
 
-    void loadBreakdown()
+    void loadTasks()
   }, [mainTask, mode, setMode])
 
   const updateDuration = (index: number, field: keyof TaskDuration, value: number) => {
