@@ -9,7 +9,7 @@ export default function Home() {
       <main className="flex w-full max-w-4xl flex-col items-center gap-10 rounded-4xl border bg-background/90 px-10 py-16 text-center shadow-(--shadow-strong) backdrop-blur">
         <div className="space-y-4">
           <h1 className="text-5xl font-semibold tracking-tight text-gradient">
-            Welcome!
+            Welcome to Dedicora!
           </h1>
           <p className="text-base text-muted-foreground">
             Select any of the options:
