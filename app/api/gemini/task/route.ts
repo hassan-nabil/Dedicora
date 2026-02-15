@@ -40,7 +40,7 @@ function buildFallback(task: string, mode: string) {
 
 export const runtime = "nodejs"
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? ""
+const GEMINI_API_KEY = "YOUR_API_KEY_HERE"
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
 
