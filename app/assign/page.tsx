@@ -29,7 +29,7 @@ type GeminiTaskResponse = {
   }>
 }
 
-export default function AssignPage() {
+function AssignContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const modeParam = searchParams.get("mode")
@@ -282,5 +282,13 @@ export default function AssignPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function AssignPage() {
+  return (
+    <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-hero">Loading...</div>}>
+      <AssignContent />
+    </React.Suspense>
   )
 }
