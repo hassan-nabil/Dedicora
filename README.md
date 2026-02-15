@@ -37,7 +37,7 @@ The API key is hardcoded in:
 Replace the placeholder string:
 
 ```ts
-const GEMINI_API_KEY = "AIzaSyDrbX3bUw8Cj6TMiOCkgoVJa88cN7hUJbs"
+const GEMINI_API_KEY = "YOUR_API_KEY_HERE"
 ```
 
 ## Audio Files
