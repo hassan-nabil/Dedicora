@@ -5,7 +5,7 @@ import reportFallback from "@/data/reportFallback.json"
 
 export const runtime = "nodejs"
 
-const GEMINI_API_KEY = "AIzaSyDrbX3bUw8Cj6TMiOCkgoVJa88cN7hUJbs"
+const GEMINI_API_KEY = "AIzaSyCm3MYWgZu3Pn4Q7r3siWtbK7lzuYgucvs"
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
 

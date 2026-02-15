@@ -78,14 +78,41 @@ export default function AssignPage() {
           }))
         )
       } catch {
-        const fallback = await import("@/data/taskFallback.json")
-        const data = fallback.default as GeminiTaskResponse
-        const normalized = mode === "single" ? [data.steps[0]] : data.steps
+        const fallbackSteps =
+          mode === "single"
+            ? [
+                {
+                  title: mainTask,
+                  description: "Work through this task with full focus.",
+                  duration: defaultDuration,
+                },
+              ]
+            : [
+                {
+                  title: `Plan and outline: ${mainTask}`,
+                  description: "Understand the requirements and plan your approach.",
+                  duration: { hours: 0, minutes: 10, seconds: 0 },
+                },
+                {
+                  title: `Work on: ${mainTask}`,
+                  description: "Execute the main work for this task.",
+                  duration: { hours: 0, minutes: 25, seconds: 0 },
+                },
+                {
+                  title: `Review and finish: ${mainTask}`,
+                  description: "Review your work and wrap up.",
+                  duration: { hours: 0, minutes: 10, seconds: 0 },
+                },
+              ]
 
-        setSummary(data.summary)
-        setDescription(data.description)
+        setSummary(mainTask)
+        setDescription(
+          mode === "single"
+            ? "Focus on completing this task."
+            : `Break down "${mainTask}" into manageable steps and tackle them one at a time.`
+        )
         setTasks(
-          normalized.map((step, index) => ({
+          fallbackSteps.map((step, index) => ({
             id: `task-${index}`,
             title: step.title,
             description: step.description,

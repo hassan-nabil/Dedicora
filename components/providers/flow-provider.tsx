@@ -36,7 +36,7 @@ type FlowState = {
 
 const FlowContext = React.createContext<FlowState | null>(null)
 
-const defaultTask = "Complete math and science homework before dinner"
+const defaultTask = ""
 
 const defaultDuration: TaskDuration = {
   hours: 0,
@@ -50,27 +50,6 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
   const [taskTree, setTaskTree] = React.useState<TaskNode | null>(null)
   const [taskList, setTaskList] = React.useState<TaskNode[]>([])
   const [currentTaskIndex, setCurrentTaskIndex] = React.useState(0)
-
-  React.useEffect(() => {
-    if (!taskTree) {
-      setTaskTree({
-        id: "task-root",
-        title: mainTask,
-        description: "Complete the task step by step.",
-        duration: defaultDuration,
-        done: false,
-      })
-      setTaskList([
-        {
-          id: "task-0",
-          title: mainTask,
-          description: "Stay focused and complete the task with care.",
-          duration: defaultDuration,
-          done: false,
-        },
-      ])
-    }
-  }, [mainTask, taskTree])
 
   const markTaskDone = React.useCallback(
     (index: number, done: boolean) => {
