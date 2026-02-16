@@ -52,12 +52,6 @@ Add MP3 files to public/audio with these names:
 
 Audio plays per page when the speaker toggle is on and restarts on each page.
 
-## Deploy to Vercel
-
-- Push the repository to GitHub
-- Import into Vercel
-- Use default Next.js settings
-- Deploy
 
 ## Notes
 
