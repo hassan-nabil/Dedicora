@@ -83,7 +83,7 @@ Your job is to analyze THIS SPECIFIC task and break it down into concrete, actio
 Rules:
 - Every step title and description MUST be specifically about "${task}", not generic productivity advice.
 - If mode is "single", return exactly 1 step.
-- If mode is "breakdown", return 3-6 steps that logically decompose "${task}" into sequential sub-tasks.
+- If mode is "breakdown", analyze the complexity and scope of the task to determine the appropriate number of steps. Simple tasks might only need 2 steps, while complex tasks could need up to 10. Use your best judgment — do NOT always default to 3-6 steps. A quick errand might be 2 steps; a major project could be 8-10.
 - Set realistic durations based on the complexity of each step.
 - The "summary" should be a short one-line summary of the task.
 - The "description" should explain the overall approach to completing "${task}".

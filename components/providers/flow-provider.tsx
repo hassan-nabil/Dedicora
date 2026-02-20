@@ -31,6 +31,9 @@ type FlowState = {
   setTaskList: (list: TaskNode[]) => void
   setCurrentTaskIndex: (index: number) => void
   markTaskDone: (index: number, done: boolean) => void
+  updateTask: (index: number, updates: Partial<Pick<TaskNode, "title" | "description" | "duration">>) => void
+  removeTask: (index: number) => void
+  removeCompletedTasks: () => void
   resetFlow: () => void
 }
 
@@ -62,6 +65,36 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
+  const updateTask = React.useCallback(
+    (index: number, updates: Partial<Pick<TaskNode, "title" | "description" | "duration">>) => {
+      setTaskList((prev) =>
+        prev.map((task, taskIndex) =>
+          taskIndex === index ? { ...task, ...updates } : task
+        )
+      )
+    },
+    []
+  )
+
+  const removeTask = React.useCallback(
+    (index: number) => {
+      setTaskList((prev) => prev.filter((_, i) => i !== index))
+      setCurrentTaskIndex((prevIndex) => {
+        if (prevIndex >= index && prevIndex > 0) return prevIndex - 1
+        return prevIndex
+      })
+    },
+    []
+  )
+
+  const removeCompletedTasks = React.useCallback(() => {
+    setTaskList((prev) => {
+      const remaining = prev.filter((t) => !t.done)
+      return remaining
+    })
+    setCurrentTaskIndex(0)
+  }, [])
+
   const resetFlow = React.useCallback(() => {
     setMode("single")
     setTaskTree(null)
@@ -82,6 +115,9 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
       setTaskList,
       setCurrentTaskIndex,
       markTaskDone,
+      updateTask,
+      removeTask,
+      removeCompletedTasks,
       resetFlow,
     }),
     [
@@ -96,6 +132,9 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
       setTaskList,
       setCurrentTaskIndex,
       markTaskDone,
+      updateTask,
+      removeTask,
+      removeCompletedTasks,
       resetFlow,
     ]
   )

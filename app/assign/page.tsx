@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Repeat2 } from "lucide-react"
+import { Repeat2, Trash2, Pencil, Check } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { TopBar } from "@/components/top-bar"
 import { TimeBox } from "@/components/time-box"
 import { useFlow, type TaskDuration, type TaskNode } from "@/components/providers/flow-provider"
@@ -41,91 +43,91 @@ function AssignContent() {
   const [summary, setSummary] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [tasks, setTasks] = React.useState<DraftTask[]>([])
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null)
 
-  React.useEffect(() => {
-    setMode(mode)
+  const fetchTasks = React.useCallback(async () => {
+    setLoading(true)
+    setTasks([])
+    try {
+      const response = await fetch("/api/gemini/task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: mainTask, mode }),
+      })
+      const data = (await response.json()) as GeminiTaskResponse
+      const steps = data.steps?.length
+        ? data.steps
+        : [
+            {
+              title: mainTask,
+              description: data.description ?? "Focus on this task.",
+              duration: defaultDuration,
+            },
+          ]
 
-    const loadTasks = async () => {
-      setLoading(true)
-      setTasks([])
-      try {
-        const response = await fetch("/api/gemini/task", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ task: mainTask, mode }),
-        })
-        const data = (await response.json()) as GeminiTaskResponse
-        const steps = data.steps?.length
-          ? data.steps
-          : [
+      const normalized = mode === "single" ? [steps[0]] : steps
+
+      setSummary(data.summary ?? "")
+      setDescription(data.description ?? "")
+      setTasks(
+        normalized.map((step, index) => ({
+          id: `task-${index}`,
+          title: step.title,
+          description: step.description,
+          duration: step.duration ?? defaultDuration,
+        }))
+      )
+    } catch {
+      const fallbackSteps =
+        mode === "single"
+          ? [
               {
                 title: mainTask,
-                description: data.description ?? "Focus on this task.",
+                description: "Work through this task with full focus.",
                 duration: defaultDuration,
               },
             ]
+          : [
+              {
+                title: `Plan and outline: ${mainTask}`,
+                description: "Understand the requirements and plan your approach.",
+                duration: { hours: 0, minutes: 10, seconds: 0 },
+              },
+              {
+                title: `Work on: ${mainTask}`,
+                description: "Execute the main work for this task.",
+                duration: { hours: 0, minutes: 25, seconds: 0 },
+              },
+              {
+                title: `Review and finish: ${mainTask}`,
+                description: "Review your work and wrap up.",
+                duration: { hours: 0, minutes: 10, seconds: 0 },
+              },
+            ]
 
-        const normalized = mode === "single" ? [steps[0]] : steps
-
-        setSummary(data.summary ?? "")
-        setDescription(data.description ?? "")
-        setTasks(
-          normalized.map((step, index) => ({
-            id: `task-${index}`,
-            title: step.title,
-            description: step.description,
-            duration: step.duration ?? defaultDuration,
-          }))
-        )
-      } catch {
-        const fallbackSteps =
-          mode === "single"
-            ? [
-                {
-                  title: mainTask,
-                  description: "Work through this task with full focus.",
-                  duration: defaultDuration,
-                },
-              ]
-            : [
-                {
-                  title: `Plan and outline: ${mainTask}`,
-                  description: "Understand the requirements and plan your approach.",
-                  duration: { hours: 0, minutes: 10, seconds: 0 },
-                },
-                {
-                  title: `Work on: ${mainTask}`,
-                  description: "Execute the main work for this task.",
-                  duration: { hours: 0, minutes: 25, seconds: 0 },
-                },
-                {
-                  title: `Review and finish: ${mainTask}`,
-                  description: "Review your work and wrap up.",
-                  duration: { hours: 0, minutes: 10, seconds: 0 },
-                },
-              ]
-
-        setSummary(mainTask)
-        setDescription(
-          mode === "single"
-            ? "Focus on completing this task."
-            : `Break down "${mainTask}" into manageable steps and tackle them one at a time.`
-        )
-        setTasks(
-          fallbackSteps.map((step, index) => ({
-            id: `task-${index}`,
-            title: step.title,
-            description: step.description,
-            duration: step.duration ?? defaultDuration,
-          }))
-        )
-      } finally {
-        setLoading(false)
-      }
+      setSummary(mainTask)
+      setDescription(
+        mode === "single"
+          ? "Focus on completing this task."
+          : `Break down "${mainTask}" into manageable steps and tackle them one at a time.`
+      )
+      setTasks(
+        fallbackSteps.map((step, index) => ({
+          id: `task-${index}`,
+          title: step.title,
+          description: step.description,
+          duration: step.duration ?? defaultDuration,
+        }))
+      )
+    } finally {
+      setLoading(false)
     }
+  }, [mainTask, mode])
 
-    void loadTasks()
-  }, [mainTask, mode, setMode])
+  React.useEffect(() => {
+    setMode(mode)
+    void fetchTasks()
+  }, [mode, setMode, fetchTasks])
 
   const updateDuration = (index: number, field: keyof TaskDuration, value: number) => {
     setTasks((prev) =>
@@ -135,6 +137,28 @@ function AssignContent() {
           : task
       )
     )
+  }
+
+  const updateTaskTitle = (index: number, title: string) => {
+    setTasks((prev) =>
+      prev.map((task, taskIndex) =>
+        taskIndex === index ? { ...task, title } : task
+      )
+    )
+  }
+
+  const updateTaskDescription = (index: number, description: string) => {
+    setTasks((prev) =>
+      prev.map((task, taskIndex) =>
+        taskIndex === index ? { ...task, description } : task
+      )
+    )
+  }
+
+  const deleteTask = (index: number) => {
+    if (tasks.length <= 1) return
+    setTasks((prev) => prev.filter((_, i) => i !== index))
+    if (editingIndex === index) setEditingIndex(null)
   }
 
   const handleStart = () => {
@@ -168,14 +192,7 @@ function AssignContent() {
   }
 
   const handleRedo = () => {
-    setTasks((prev) => {
-      const duplicate = prev.map((task, index) => ({
-        ...task,
-        id: `${task.id}-redo-${index}`,
-        title: `${task.title} (redo)`
-      }))
-      return [...prev, ...duplicate]
-    })
+    void fetchTasks()
   }
 
   return (
@@ -226,17 +243,67 @@ function AssignContent() {
                   key={task.id}
                   className="rounded-3xl border bg-card/70 p-5 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="min-w-55">
-                      <p className="text-sm text-muted-foreground">
-                        Task {index + 1}
-                      </p>
-                      <h3 className="text-lg font-semibold">{task.title}</h3>
-                      {task.description ? (
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-55 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
                         <p className="text-sm text-muted-foreground">
-                          {task.description}
+                          Task {index + 1}
                         </p>
-                      ) : null}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 rounded-full"
+                            onClick={() =>
+                              setEditingIndex(editingIndex === index ? null : index)
+                            }
+                            aria-label={editingIndex === index ? "Done editing" : "Edit task"}
+                          >
+                            {editingIndex === index ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Pencil className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          {tasks.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 rounded-full text-destructive hover:text-destructive"
+                              onClick={() => deleteTask(index)}
+                              aria-label="Delete task"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {editingIndex === index ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={task.title}
+                            onChange={(e) => updateTaskTitle(index, e.target.value)}
+                            className="text-lg font-semibold"
+                            placeholder="Task title"
+                          />
+                          <Textarea
+                            value={task.description ?? ""}
+                            onChange={(e) => updateTaskDescription(index, e.target.value)}
+                            className="text-sm"
+                            placeholder="Task description"
+                            rows={2}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-semibold">{task.title}</h3>
+                          {task.description ? (
+                            <p className="text-sm text-muted-foreground">
+                              {task.description}
+                            </p>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4">
                       <TimeBox
@@ -268,6 +335,7 @@ function AssignContent() {
               variant="outline"
               className="rounded-full px-6"
               onClick={handleRedo}
+              disabled={loading}
             >
               <Repeat2 className="mr-2 h-4 w-4" /> Redo
             </Button>

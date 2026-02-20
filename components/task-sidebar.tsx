@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, Circle, X } from "lucide-react"
+import { CheckCircle2, Circle, X, Trash2 } from "lucide-react"
 
 import { useFlow } from "@/components/providers/flow-provider"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -9,9 +9,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function TaskSidebar() {
   const { sidebarOpen, setSidebarOpen } = useSettings()
-  const { taskTree, taskList, currentTaskIndex } = useFlow()
+  const { taskTree, taskList, currentTaskIndex, removeCompletedTasks } = useFlow()
 
   if (!sidebarOpen) return null
+
+  const hasCompletedTasks = taskList.some((t) => t.done)
 
   return (
     <div className="fixed inset-0 z-40">
@@ -74,6 +76,17 @@ export function TaskSidebar() {
                   ))}
                 </div>
               </details>
+
+              {hasCompletedTasks && (
+                <Button
+                  variant="outline"
+                  className="w-full rounded-full text-destructive hover:text-destructive"
+                  onClick={removeCompletedTasks}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Completed Tasks
+                </Button>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

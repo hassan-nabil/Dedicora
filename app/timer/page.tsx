@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Pause, Play, ArrowLeft, ArrowRight } from "lucide-react"
+import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ export default function TimerPage() {
   const [notesOpen, setNotesOpen] = React.useState(false)
 
   const currentTask = taskList[currentTaskIndex]
+  const allTasksDone = taskList.length > 0 && taskList.every((t) => t.done)
 
   React.useEffect(() => {
     if (!currentTask) return
@@ -40,8 +41,16 @@ export default function TimerPage() {
     setIsFinished(false)
   }, [currentTask])
 
+  // Stop everything when all tasks are done
   React.useEffect(() => {
-    if (!currentTask || !isRunning || countingForward) return
+    if (allTasksDone) {
+      setIsRunning(false)
+      setCountingForward(false)
+    }
+  }, [allTasksDone])
+
+  React.useEffect(() => {
+    if (!currentTask || !isRunning || countingForward || allTasksDone) return
 
     const timer = window.setInterval(() => {
       setRemaining((prev) => {
@@ -56,17 +65,17 @@ export default function TimerPage() {
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning, countingForward, currentTaskIndex, currentTask, markTaskDone])
+  }, [isRunning, countingForward, currentTaskIndex, currentTask, markTaskDone, allTasksDone])
 
   React.useEffect(() => {
-    if (!currentTask || !isRunning || !countingForward) return
+    if (!currentTask || !isRunning || !countingForward || allTasksDone) return
 
     const timer = window.setInterval(() => {
       setOvertime((prev) => prev + 1)
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning, countingForward, currentTask])
+  }, [isRunning, countingForward, currentTask, allTasksDone])
 
   const handlePrev = () => {
     if (currentTaskIndex === 0) return
@@ -86,6 +95,7 @@ export default function TimerPage() {
     markTaskDone(currentTaskIndex, true)
     setIsFinished(true)
     setIsRunning(false)
+    setCountingForward(false)
   }
 
   const handleReport = () => {
@@ -95,7 +105,13 @@ export default function TimerPage() {
     router.push("/report")
   }
 
-  const stickmanState = isFinished ? "done" : isRunning ? "working" : "break"
+  const stickmanState = allTasksDone
+    ? "done"
+    : isFinished
+      ? "working"
+      : isRunning
+        ? "working"
+        : "break"
   const displayTime = countingForward
     ? `+${formatTime(overtime)}`
     : formatTime(remaining)
@@ -105,7 +121,16 @@ export default function TimerPage() {
       <TopBar showSidebar />
       <TaskSidebar />
 
-      <div className="absolute left-6 top-6">
+      {/* Persistent navigation buttons - always visible */}
+      <div className="absolute left-6 top-6 flex items-center gap-2">
+        <Button
+          variant="outline"
+          className="rounded-full"
+          onClick={() => router.push("/task")}
+        >
+          <CornerUpLeft className="mr-2 h-4 w-4" />
+          Back to Tasks
+        </Button>
         <Button
           variant="outline"
           className="rounded-full"
@@ -127,6 +152,36 @@ export default function TimerPage() {
             <Button className="rounded-full px-6" onClick={() => router.push("/task")}>
               Add a task
             </Button>
+          </div>
+        </main>
+      ) : allTasksDone ? (
+        /* Congratulations screen — shown only when ALL tasks are complete */
+        <main className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col items-center justify-center gap-8 text-center">
+          <div className="space-y-6 rounded-4xl border bg-card/80 p-12 shadow-(--shadow-strong)">
+            <Stickman state="done" />
+            <div className="space-y-3">
+              <h1 className="text-4xl font-bold text-gradient">
+                Congratulations! 🎉
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                You&apos;ve completed all your tasks!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {taskList.length} task{taskList.length !== 1 ? "s" : ""} finished. Great work staying focused!
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+              <Button className="rounded-full px-8" onClick={handleReport}>
+                Check my productivity
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-6"
+                onClick={() => router.push("/task")}
+              >
+                Start new session
+              </Button>
+            </div>
           </div>
         </main>
       ) : (
