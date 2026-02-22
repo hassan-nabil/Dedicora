@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Repeat2, Trash2, Pencil, Check } from "lucide-react"
+import { Repeat2, Trash2, Pencil, Check, Bot } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { TopBar } from "@/components/top-bar"
 import { TimeBox } from "@/components/time-box"
+import { ChatPanel } from "@/components/chat-panel"
 import { useFlow, type TaskDuration, type TaskNode } from "@/components/providers/flow-provider"
 
 const defaultDuration: TaskDuration = { hours: 0, minutes: 20, seconds: 0 }
@@ -44,6 +45,7 @@ function AssignContent() {
   const [description, setDescription] = React.useState("")
   const [tasks, setTasks] = React.useState<DraftTask[]>([])
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null)
+  const [chatOpen, setChatOpen] = React.useState(false)
 
   const fetchTasks = React.useCallback(async () => {
     setLoading(true)
@@ -198,6 +200,20 @@ function AssignContent() {
   return (
     <div className="relative flex min-h-screen flex-col bg-hero px-6 py-10">
       <TopBar />
+
+      <div className="absolute left-6 top-6">
+        <Button
+          variant="outline"
+          className="rounded-full"
+          onClick={() => setChatOpen(true)}
+        >
+          <Bot className="mr-2 h-4 w-4" />
+          AI Assistant
+        </Button>
+      </div>
+
+      <ChatPanel open={chatOpen} onOpenChange={setChatOpen} />
+
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">

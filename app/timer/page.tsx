@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft } from "lucide-react"
+import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
 import { Stickman } from "@/components/stickman"
 import { TaskSidebar } from "@/components/task-sidebar"
 import { NotesPanel } from "@/components/notes-panel"
+import { ChatPanel } from "@/components/chat-panel"
 import { useFlow } from "@/components/providers/flow-provider"
 import { formatTime, toSeconds } from "@/lib/time"
 
@@ -23,6 +24,7 @@ export default function TimerPage() {
   const [overtime, setOvertime] = React.useState(0)
   const [countingForward, setCountingForward] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
+  const [chatOpen, setChatOpen] = React.useState(false)
 
   const currentTask = taskList[currentTaskIndex]
   const allTasksDone = taskList.length > 0 && taskList.every((t) => t.done)
@@ -138,9 +140,18 @@ export default function TimerPage() {
         >
           My Notes
         </Button>
+        <Button
+          variant="outline"
+          className="rounded-full"
+          onClick={() => setChatOpen(true)}
+        >
+          <Bot className="mr-2 h-4 w-4" />
+          AI Assistant
+        </Button>
       </div>
 
       <NotesPanel open={notesOpen} onOpenChange={setNotesOpen} />
+      <ChatPanel open={chatOpen} onOpenChange={setChatOpen} />
 
       {!currentTask ? (
         <main className="mx-auto flex min-h-[70vh] w-full max-w-3xl items-center justify-center text-center">
