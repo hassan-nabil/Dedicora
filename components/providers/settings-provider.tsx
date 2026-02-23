@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export type ColorBlindMode =
   | "normal"
@@ -38,6 +39,7 @@ export function SettingsProvider({
 }: {
   children: React.ReactNode
 }) {
+  const { user } = useAuth()
   const [audioEnabled, setAudioEnabled] = React.useState(false)
   const [colorBlindMode, setColorBlindMode] = React.useState<ColorBlindMode>(
     "normal"
@@ -45,7 +47,9 @@ export function SettingsProvider({
   const [themeMode, setThemeMode] = React.useState<ThemeMode>("light")
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [dbLoaded, setDbLoaded] = React.useState(false)
 
+  // Load from localStorage first (instant)
   React.useEffect(() => {
     if (typeof window === "undefined") return
     const saved = window.localStorage.getItem(STORAGE_KEY)
@@ -64,6 +68,24 @@ export function SettingsProvider({
     }
   }, [])
 
+  // Load from DB when user is authenticated (override localStorage)
+  React.useEffect(() => {
+    if (!user || dbLoaded) return
+    setDbLoaded(true)
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { audio_enabled?: boolean; color_blind_mode?: string; theme_mode?: string } | null) => {
+        if (!data) return
+        if (typeof data.audio_enabled === "boolean") setAudioEnabled(data.audio_enabled)
+        if (data.color_blind_mode) setColorBlindMode(data.color_blind_mode as ColorBlindMode)
+        if (data.theme_mode) setThemeMode(data.theme_mode as ThemeMode)
+      })
+      .catch(() => {})
+  }, [user, dbLoaded])
+
+  // Save to localStorage + sync to DB
+  const dbSaveRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
   React.useEffect(() => {
     if (typeof window === "undefined") return
     const payload = {
@@ -72,7 +94,23 @@ export function SettingsProvider({
       themeMode,
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  }, [audioEnabled, colorBlindMode, themeMode])
+
+    // Debounced DB sync
+    if (user) {
+      if (dbSaveRef.current) clearTimeout(dbSaveRef.current)
+      dbSaveRef.current = setTimeout(() => {
+        fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audio_enabled: audioEnabled,
+            color_blind_mode: colorBlindMode,
+            theme_mode: themeMode,
+          }),
+        }).catch(() => {})
+      }, 1500)
+    }
+  }, [audioEnabled, colorBlindMode, themeMode, user])
 
   React.useEffect(() => {
     if (typeof document === "undefined") return

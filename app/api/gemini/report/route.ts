@@ -23,7 +23,14 @@ function safeJsonParse(text: string) {
 export async function POST(request: Request) {
   try {
     const { tasks } = (await request.json()) as {
-      tasks?: Array<{ title: string; duration: { hours: number; minutes: number; seconds: number }; done: boolean }>
+      tasks?: Array<{
+        title: string
+        estimated_seconds?: number
+        actual_seconds?: number
+        overtime_seconds?: number
+        done: boolean
+        duration?: { hours: number; minutes: number; seconds: number }
+      }>
     }
 
     if (!tasks || tasks.length === 0) {
@@ -35,7 +42,18 @@ export async function POST(request: Request) {
     const totalTasks = tasks.length
     const completedTasks = tasks.filter((task) => task.done).length
 
-    const prompt = `You are generating a productivity report for Dedicora.
+    // Build a summary string with actual vs estimated data
+    const taskSummaries = tasks.map((t) => {
+      const est = t.estimated_seconds ?? 0
+      const act = t.actual_seconds ?? 0
+      const ot = t.overtime_seconds ?? 0
+      return `- "${t.title}": estimated ${est}s, actual ${act}s, overtime ${ot}s, ${t.done ? "completed" : "incomplete"}`
+    }).join("\n")
+
+    const totalEstimated = tasks.reduce((s, t) => s + (t.estimated_seconds ?? 0), 0)
+    const totalActual = tasks.reduce((s, t) => s + (t.actual_seconds ?? 0), 0)
+
+    const prompt = `You are generating a productivity report for Dedicora, an AI focus partner app.
 Return JSON only with this shape:
 {
   "title": string,
@@ -45,9 +63,16 @@ Return JSON only with this shape:
 }
 Total tasks: ${totalTasks}
 Completed tasks: ${completedTasks}
-Tasks: ${JSON.stringify(tasks)}
-Use completion and duration patterns to create insights.
-Create a bar-chart friendly data series in chart, with 3-6 items.`
+Total estimated time: ${totalEstimated}s
+Total actual time: ${totalActual}s
+
+Task details:
+${taskSummaries}
+
+Use completion rates and actual vs estimated time to create actionable insights.
+Focus on patterns: was the user over/under-estimating? Did they stay focused?
+Create a bar-chart friendly data series in chart (3-6 items) comparing estimated vs actual per task (in minutes).
+Keep the tone encouraging and supportive.`
 
     const result = await model.generateContent(prompt)
     const text = result.response.text()

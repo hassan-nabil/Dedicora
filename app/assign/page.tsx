@@ -12,6 +12,7 @@ import { TopBar } from "@/components/top-bar"
 import { TimeBox } from "@/components/time-box"
 import { ChatPanel } from "@/components/chat-panel"
 import { useFlow, type TaskDuration, type TaskNode } from "@/components/providers/flow-provider"
+import { toSeconds } from "@/lib/time"
 
 const defaultDuration: TaskDuration = { hours: 0, minutes: 20, seconds: 0 }
 
@@ -36,9 +37,10 @@ function AssignContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const modeParam = searchParams.get("mode")
+  const sessionParam = searchParams.get("session")
   const mode = modeParam === "breakdown" ? "breakdown" : "single"
 
-  const { mainTask, setMode, setTaskTree, setTaskList } = useFlow()
+  const { mainTask, setMode, setTaskTree, setTaskList, sessionId, setSessionId, loadSession } = useFlow()
 
   const [loading, setLoading] = React.useState(mode === "breakdown")
   const [summary, setSummary] = React.useState("")
@@ -46,6 +48,24 @@ function AssignContent() {
   const [tasks, setTasks] = React.useState<DraftTask[]>([])
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null)
   const [chatOpen, setChatOpen] = React.useState(false)
+  const [loaded, setLoaded] = React.useState(false)
+
+  // Set session ID from URL param
+  React.useEffect(() => {
+    if (sessionParam && !sessionId) {
+      setSessionId(sessionParam)
+    }
+  }, [sessionParam, sessionId, setSessionId])
+
+  // Load existing session if resuming
+  React.useEffect(() => {
+    if (sessionParam && !loaded) {
+      setLoaded(true)
+      loadSession(sessionParam).then(() => {
+        // Session loaded, tasks will be set via flow provider
+      })
+    }
+  }, [sessionParam, loaded, loadSession])
 
   const fetchTasks = React.useCallback(async () => {
     setLoading(true)
@@ -128,8 +148,43 @@ function AssignContent() {
 
   React.useEffect(() => {
     setMode(mode)
-    void fetchTasks()
-  }, [mode, setMode, fetchTasks])
+    if (!sessionParam) {
+      // Only fetch if not loading from an existing session
+      void fetchTasks()
+    }
+  }, [mode, setMode, fetchTasks, sessionParam])
+
+  // Auto-save tasks to DB (debounced)
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  React.useEffect(() => {
+    if (!sessionId || tasks.length === 0) return
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/sessions/${sessionId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tasks: tasks.map((t) => ({
+              title: t.title,
+              description: t.description ?? "",
+              estimated_seconds: toSeconds(t.duration.hours, t.duration.minutes, t.duration.seconds),
+            })),
+          }),
+        })
+      } catch {
+        // Silently fail
+      }
+    }, 1000)
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [sessionId, tasks])
 
   const updateDuration = (index: number, field: keyof TaskDuration, value: number) => {
     setTasks((prev) =>
@@ -163,7 +218,7 @@ function AssignContent() {
     if (editingIndex === index) setEditingIndex(null)
   }
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const tree: TaskNode = {
       id: "root",
       title: mainTask,
@@ -190,7 +245,33 @@ function AssignContent() {
       }))
     )
 
-    router.push("/timer")
+    // Save tasks and update session step
+    const sid = sessionId ?? sessionParam
+    if (sid) {
+      try {
+        await fetch(`/api/sessions/${sid}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tasks: tasks.map((t) => ({
+              title: t.title,
+              description: t.description ?? "",
+              estimated_seconds: toSeconds(t.duration.hours, t.duration.minutes, t.duration.seconds),
+            })),
+          }),
+        })
+
+        await fetch(`/api/sessions/${sid}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_step: "timer" }),
+        })
+      } catch {
+        // Continue anyway
+      }
+    }
+
+    router.push(sid ? `/timer?session=${sid}` : "/timer")
   }
 
   const handleRedo = () => {

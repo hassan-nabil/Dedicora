@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { TopBar } from "@/components/top-bar"
@@ -11,11 +12,36 @@ const sampleTask = "Complete math and science homework before dinner"
 
 export default function TaskPage() {
   const router = useRouter()
-  const { mainTask, setMainTask, setMode } = useFlow()
+  const { mainTask, setMainTask, setMode, setSessionId } = useFlow()
+  const [creating, setCreating] = React.useState(false)
 
-  const handleNavigate = (mode: "single" | "breakdown") => {
+  const handleNavigate = async (mode: "single" | "breakdown") => {
+    if (!mainTask.trim()) return
     setMode(mode)
-    router.push(`/assign?mode=${mode}`)
+    setCreating(true)
+
+    try {
+      // Create session in DB
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: mainTask.trim(), mode }),
+      })
+
+      if (res.ok) {
+        const session = await res.json()
+        setSessionId(session.id)
+        router.push(`/assign?mode=${mode}&session=${session.id}`)
+      } else {
+        // Fallback: local-only mode
+        router.push(`/assign?mode=${mode}`)
+      }
+    } catch {
+      // Fallback: local-only mode
+      router.push(`/assign?mode=${mode}`)
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -38,14 +64,16 @@ export default function TaskPage() {
             variant="outline"
             className="rounded-full px-8"
             onClick={() => handleNavigate("single")}
+            disabled={creating || !mainTask.trim()}
           >
-            Only This
+            {creating ? "Creating..." : "Only This"}
           </Button>
           <Button
             className="rounded-full px-8"
             onClick={() => handleNavigate("breakdown")}
+            disabled={creating || !mainTask.trim()}
           >
-            Break It Down
+            {creating ? "Creating..." : "Break It Down"}
           </Button>
         </div>
       </main>

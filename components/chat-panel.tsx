@@ -20,10 +20,11 @@ type ChatPanelProps = {
 }
 
 export function ChatPanel({ open, onOpenChange }: ChatPanelProps) {
-  const { mainTask, taskList, currentTaskIndex } = useFlow()
+  const { mainTask, taskList, currentTaskIndex, sessionId } = useFlow()
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
+  const [historyLoaded, setHistoryLoaded] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
 
@@ -40,6 +41,39 @@ export function ChatPanel({ open, onOpenChange }: ChatPanelProps) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
+
+  // Load chat history from DB
+  React.useEffect(() => {
+    if (!sessionId || historyLoaded || messages.length > 0) return
+    setHistoryLoaded(true)
+    fetch(`/api/sessions/${sessionId}/chat`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: Array<{ role: string; content: string; id: string }> | null) => {
+        if (data && data.length > 0) {
+          setMessages(
+            data.map((m) => ({
+              id: m.id ?? `${m.role}-${Date.now()}-${Math.random()}`,
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+  }, [sessionId, historyLoaded, messages.length])
+
+  // Save a message to DB
+  const persistMessage = React.useCallback(
+    (role: "user" | "assistant", content: string) => {
+      if (!sessionId) return
+      fetch(`/api/sessions/${sessionId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, content }),
+      }).catch(() => {})
+    },
+    [sessionId]
+  )
 
   const buildTaskContext = React.useCallback(() => {
     const currentTask = taskList[currentTaskIndex]
@@ -68,6 +102,9 @@ export function ChatPanel({ open, onOpenChange }: ChatPanelProps) {
     setMessages(allMessages)
     setInput("")
     setIsLoading(true)
+
+    // Persist user message to DB
+    persistMessage("user", trimmed)
 
     const assistantMessage: ChatMessage = {
       id: `assistant-${Date.now()}`,
@@ -107,18 +144,24 @@ export function ChatPanel({ open, onOpenChange }: ChatPanelProps) {
           )
         )
       }
+
+      // Persist assistant response to DB
+      if (accumulated) {
+        persistMessage("assistant", accumulated)
+      }
     } catch {
+      const fallbackContent = "Sorry, I couldn't process that. Please try again."
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessage.id
-            ? { ...m, content: "Sorry, I couldn't process that. Please try again." }
+            ? { ...m, content: fallbackContent }
             : m
         )
       )
     } finally {
       setIsLoading(false)
     }
-  }, [input, isLoading, messages, buildTaskContext])
+  }, [input, isLoading, messages, buildTaskContext, persistMessage])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
