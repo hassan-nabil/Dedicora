@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Eye, Moon, Sun, Volume2, VolumeX } from "lucide-react"
+import { Eye, Moon, Sun, Timer, Volume2, VolumeX } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -51,9 +51,11 @@ export function SettingsOptions({ className, variant = "grid" }: SettingsOptions
     audioEnabled,
     colorBlindMode,
     themeMode,
+    breakMinutes,
     toggleAudio,
     cycleColorBlindMode,
     toggleTheme,
+    cycleBreakMinutes,
   } = useSettings()
 
   return (
@@ -92,6 +94,12 @@ export function SettingsOptions({ className, variant = "grid" }: SettingsOptions
         ) : (
           <Sun className="h-5 w-5" />
         )}
+      </OptionCard>
+      <OptionCard
+        label={`${breakMinutes}m Break`}
+        onClick={cycleBreakMinutes}
+      >
+        <Timer className="h-5 w-5" />
       </OptionCard>
     </div>
   )

@@ -14,11 +14,13 @@ type SettingsState = {
   audioEnabled: boolean
   colorBlindMode: ColorBlindMode
   themeMode: ThemeMode
+  breakMinutes: number
   settingsOpen: boolean
   sidebarOpen: boolean
   toggleAudio: () => void
   cycleColorBlindMode: () => void
   toggleTheme: () => void
+  cycleBreakMinutes: () => void
   setSettingsOpen: (open: boolean) => void
   setSidebarOpen: (open: boolean) => void
 }
@@ -45,6 +47,7 @@ export function SettingsProvider({
     "normal"
   )
   const [themeMode, setThemeMode] = React.useState<ThemeMode>("light")
+  const [breakMinutes, setBreakMinutes] = React.useState(5)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [dbLoaded, setDbLoaded] = React.useState(false)
@@ -63,6 +66,9 @@ export function SettingsProvider({
       if (parsed.themeMode) {
         setThemeMode(parsed.themeMode)
       }
+      if (typeof (parsed as Record<string, unknown>).breakMinutes === "number") {
+        setBreakMinutes((parsed as Record<string, unknown>).breakMinutes as number)
+      }
     } catch {
       // Ignore malformed storage.
     }
@@ -74,11 +80,12 @@ export function SettingsProvider({
     setDbLoaded(true)
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { audio_enabled?: boolean; color_blind_mode?: string; theme_mode?: string } | null) => {
+      .then((data: { audio_enabled?: boolean; color_blind_mode?: string; theme_mode?: string; default_break_minutes?: number } | null) => {
         if (!data) return
         if (typeof data.audio_enabled === "boolean") setAudioEnabled(data.audio_enabled)
         if (data.color_blind_mode) setColorBlindMode(data.color_blind_mode as ColorBlindMode)
         if (data.theme_mode) setThemeMode(data.theme_mode as ThemeMode)
+        if (typeof data.default_break_minutes === "number") setBreakMinutes(data.default_break_minutes)
       })
       .catch(() => {})
   }, [user, dbLoaded])
@@ -92,6 +99,7 @@ export function SettingsProvider({
       audioEnabled,
       colorBlindMode,
       themeMode,
+      breakMinutes,
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
 
@@ -106,11 +114,12 @@ export function SettingsProvider({
             audio_enabled: audioEnabled,
             color_blind_mode: colorBlindMode,
             theme_mode: themeMode,
+            default_break_minutes: breakMinutes,
           }),
         }).catch(() => {})
       }, 1500)
     }
-  }, [audioEnabled, colorBlindMode, themeMode, user])
+  }, [audioEnabled, colorBlindMode, themeMode, breakMinutes, user])
 
   React.useEffect(() => {
     if (typeof document === "undefined") return
@@ -147,16 +156,27 @@ export function SettingsProvider({
     setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))
   }, [])
 
+  const breakOptions = [5, 10, 15, 20] as const
+  const cycleBreakMinutes = React.useCallback(() => {
+    setBreakMinutes((prev) => {
+      const idx = breakOptions.indexOf(prev as typeof breakOptions[number])
+      return breakOptions[(idx + 1) % breakOptions.length]
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const value = React.useMemo(
     () => ({
       audioEnabled,
       colorBlindMode,
       themeMode,
+      breakMinutes,
       settingsOpen,
       sidebarOpen,
       toggleAudio,
       cycleColorBlindMode,
       toggleTheme,
+      cycleBreakMinutes,
       setSettingsOpen,
       setSidebarOpen,
     }),
@@ -164,11 +184,13 @@ export function SettingsProvider({
       audioEnabled,
       colorBlindMode,
       themeMode,
+      breakMinutes,
       settingsOpen,
       sidebarOpen,
       toggleAudio,
       cycleColorBlindMode,
       toggleTheme,
+      cycleBreakMinutes,
       setSettingsOpen,
       setSidebarOpen,
     ]
