@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
@@ -13,10 +13,15 @@ import { ChatPanel } from "@/components/chat-panel"
 import { useFlow } from "@/components/providers/flow-provider"
 import { formatTime, toSeconds } from "@/lib/time"
 
-export default function TimerPage() {
+function TimerContent() {
   const router = useRouter()
-  const { taskList, currentTaskIndex, setCurrentTaskIndex, markTaskDone } =
-    useFlow()
+  const searchParams = useSearchParams()
+  const sessionParam = searchParams.get("session")
+
+  const {
+    taskList, currentTaskIndex, setCurrentTaskIndex, markTaskDone,
+    sessionId, setSessionId, loadSession,
+  } = useFlow()
 
   const [isRunning, setIsRunning] = React.useState(true)
   const [isFinished, setIsFinished] = React.useState(false)
@@ -25,23 +30,69 @@ export default function TimerPage() {
   const [countingForward, setCountingForward] = React.useState(false)
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [chatOpen, setChatOpen] = React.useState(false)
+  const [loaded, setLoaded] = React.useState(false)
+
+  // Track actual time spent on current task
+  const actualSecondsRef = React.useRef(0)
+  // Guard: last task index we initialized for (prevents re-init on same index)
+  const lastInitIndexRef = React.useRef(-1)
+  // Per-task timer state map: index → { remaining, overtime, countingForward, actualSeconds, isFinished }
+  const taskTimersRef = React.useRef<Map<number, { remaining: number; overtime: number; countingForward: boolean; actualSeconds: number; isFinished: boolean }>>(new Map())
 
   const currentTask = taskList[currentTaskIndex]
   const allTasksDone = taskList.length > 0 && taskList.every((t) => t.done)
 
+  // Save the current task's timer state into the map
+  const saveCurrentTimerState = React.useCallback(() => {
+    taskTimersRef.current.set(lastInitIndexRef.current, {
+      remaining,
+      overtime,
+      countingForward,
+      actualSeconds: actualSecondsRef.current,
+      isFinished,
+    })
+  }, [remaining, overtime, countingForward, isFinished])
+
+  // Load session from DB if URL has session param
+  React.useEffect(() => {
+    if (sessionParam && !loaded && !sessionId) {
+      setLoaded(true)
+      setSessionId(sessionParam)
+      loadSession(sessionParam)
+    } else if (sessionParam && !sessionId) {
+      setSessionId(sessionParam)
+    }
+  }, [sessionParam, loaded, sessionId, setSessionId, loadSession])
+
+  // Initialize timer when task INDEX changes (not object reference)
   React.useEffect(() => {
     if (!currentTask) return
-    const initialSeconds = toSeconds(
-      currentTask.duration.hours,
-      currentTask.duration.minutes,
-      currentTask.duration.seconds
-    )
-    setRemaining(initialSeconds)
-    setOvertime(0)
-    setCountingForward(false)
-    setIsRunning(true)
-    setIsFinished(false)
-  }, [currentTask])
+    if (lastInitIndexRef.current === currentTaskIndex) return // same task, skip
+    lastInitIndexRef.current = currentTaskIndex
+
+    // Check for saved state first (restoring after navigation)
+    const saved = taskTimersRef.current.get(currentTaskIndex)
+    if (saved) {
+      setRemaining(saved.remaining)
+      setOvertime(saved.overtime)
+      setCountingForward(saved.countingForward)
+      setIsFinished(saved.isFinished)
+      setIsRunning(!saved.isFinished)
+      actualSecondsRef.current = saved.actualSeconds
+    } else {
+      const initialSeconds = toSeconds(
+        currentTask.duration.hours,
+        currentTask.duration.minutes,
+        currentTask.duration.seconds
+      )
+      setRemaining(initialSeconds)
+      setOvertime(0)
+      setCountingForward(false)
+      setIsRunning(true)
+      setIsFinished(false)
+      actualSecondsRef.current = currentTask.actualSeconds ?? 0
+    }
+  }, [currentTaskIndex, taskList.length, currentTask])
 
   // Stop everything when all tasks are done
   React.useEffect(() => {
@@ -51,10 +102,12 @@ export default function TimerPage() {
     }
   }, [allTasksDone])
 
+  // Countdown timer
   React.useEffect(() => {
     if (!currentTask || !isRunning || countingForward || allTasksDone) return
 
     const timer = window.setInterval(() => {
+      actualSecondsRef.current += 1
       setRemaining((prev) => {
         if (prev <= 1) {
           markTaskDone(currentTaskIndex, true)
@@ -69,23 +122,80 @@ export default function TimerPage() {
     return () => window.clearInterval(timer)
   }, [isRunning, countingForward, currentTaskIndex, currentTask, markTaskDone, allTasksDone])
 
+  // Overtime counter
   React.useEffect(() => {
     if (!currentTask || !isRunning || !countingForward || allTasksDone) return
 
     const timer = window.setInterval(() => {
+      actualSecondsRef.current += 1
       setOvertime((prev) => prev + 1)
     }, 1000)
 
     return () => window.clearInterval(timer)
   }, [isRunning, countingForward, currentTask, allTasksDone])
 
+  // Persist timer state to DB every 5 seconds
+  React.useEffect(() => {
+    const sid = sessionId ?? sessionParam
+    if (!sid || !isRunning) return
+
+    const persistTimer = window.setInterval(async () => {
+      // Save current task progress
+      if (currentTask?.dbId) {
+        try {
+          await fetch(`/api/tasks/${currentTask.dbId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actual_seconds: actualSecondsRef.current,
+              overtime_seconds: overtime,
+              status: currentTask.done ? "completed" : "active",
+            }),
+          })
+        } catch {
+          // Silently fail
+        }
+      }
+
+      // Save session aggregate
+      const totalActual = taskList.reduce((sum, t, i) => {
+        if (i === currentTaskIndex) return sum + actualSecondsRef.current
+        return sum + (t.actualSeconds ?? 0)
+      }, 0)
+      const totalOvertime = taskList.reduce((sum, t, i) => {
+        if (i === currentTaskIndex) return sum + overtime
+        return sum + (t.overtimeSeconds ?? 0)
+      }, 0)
+
+      try {
+        await fetch(`/api/sessions/${sid}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            current_task_index: currentTaskIndex,
+            total_actual_seconds: totalActual,
+            total_overtime_seconds: totalOvertime,
+          }),
+        })
+      } catch {
+        // Silently fail
+      }
+    }, 5000)
+
+    return () => window.clearInterval(persistTimer)
+  }, [sessionId, sessionParam, isRunning, currentTask, currentTaskIndex, overtime, taskList])
+
   const handlePrev = () => {
     if (currentTaskIndex === 0) return
+    saveCurrentTimerState()
+    lastInitIndexRef.current = -1 // allow re-init for new index
     setCurrentTaskIndex(currentTaskIndex - 1)
   }
 
   const handleNext = () => {
     if (currentTaskIndex >= taskList.length - 1) return
+    saveCurrentTimerState()
+    lastInitIndexRef.current = -1
     setCurrentTaskIndex(currentTaskIndex + 1)
   }
 
@@ -93,18 +203,79 @@ export default function TimerPage() {
     setIsRunning((prev) => !prev)
   }
 
-  const handleEnd = () => {
+  const handleEnd = async () => {
     markTaskDone(currentTaskIndex, true)
-    setIsFinished(true)
-    setIsRunning(false)
-    setCountingForward(false)
+
+    // Save completed state for this task
+    taskTimersRef.current.set(currentTaskIndex, {
+      remaining: 0,
+      overtime,
+      countingForward: false,
+      actualSeconds: actualSecondsRef.current,
+      isFinished: true,
+    })
+
+    // Persist task completion to DB
+    if (currentTask?.dbId) {
+      try {
+        await fetch(`/api/tasks/${currentTask.dbId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actual_seconds: actualSecondsRef.current,
+            overtime_seconds: overtime,
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          }),
+        })
+      } catch {
+        // Silently fail
+      }
+    }
+
+    // Auto-advance to next incomplete task
+    const nextIncomplete = taskList.findIndex((t, i) => i > currentTaskIndex && !t.done)
+    if (nextIncomplete !== -1) {
+      lastInitIndexRef.current = -1
+      setCurrentTaskIndex(nextIncomplete)
+    } else {
+      // No more tasks — stay on current, show finished state
+      setIsFinished(true)
+      setIsRunning(false)
+      setCountingForward(false)
+    }
   }
 
-  const handleReport = () => {
+  const handleReport = async () => {
+    const sid = sessionId ?? sessionParam
+
+    // Mark session as completed
+    if (sid) {
+      try {
+        const totalActual = taskList.reduce((sum, t, i) => {
+          if (i === currentTaskIndex) return sum + actualSecondsRef.current
+          return sum + (t.actualSeconds ?? 0)
+        }, 0)
+
+        await fetch(`/api/sessions/${sid}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: allTasksDone ? "completed" : "paused",
+            current_step: "report",
+            total_actual_seconds: totalActual,
+            completed_at: allTasksDone ? new Date().toISOString() : null,
+          }),
+        })
+      } catch {
+        // Continue anyway
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem("reportRequested", "true")
     }
-    router.push("/report")
+    router.push(sid ? `/report?session=${sid}` : "/report")
   }
 
   const stickmanState = allTasksDone
@@ -262,5 +433,13 @@ export default function TimerPage() {
         </main>
       )}
     </div>
+  )
+}
+
+export default function TimerPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-hero" />}>
+      <TimerContent />
+    </React.Suspense>
   )
 }
