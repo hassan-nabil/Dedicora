@@ -1,0 +1,243 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { Plus, Zap, Clock, Flame, Target } from "lucide-react"
+
+import { TopBar } from "@/components/top-bar"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { ReportChart, type ChartDatum } from "@/components/report-chart"
+import { useAuth } from "@/components/providers/auth-provider"
+import { useFlow } from "@/components/providers/flow-provider"
+
+type StatsData = {
+  totalSessions: number
+  totalFocusHours: number
+  currentStreak: number
+  longestStreak: number
+  thisWeekHours: number
+  lastWeekHours: number
+  completionRate: number
+  dailyStats: ChartDatum[]
+}
+
+type SessionSummary = {
+  id: string
+  title: string
+  status: string
+  created_at: string
+  total_actual_seconds: number
+  current_step: string
+}
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const { user, profile, loading: authLoading } = useAuth()
+  const { setMainTask, setMode, setSessionId } = useFlow()
+
+  const [stats, setStats] = React.useState<StatsData | null>(null)
+  const [sessions, setSessions] = React.useState<SessionSummary[]>([])
+  const [activeSession, setActiveSession] = React.useState<SessionSummary | null>(null)
+  const [loadingData, setLoadingData] = React.useState(true)
+
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login")
+    }
+  }, [authLoading, user, router])
+
+  // Fetch stats and sessions
+  React.useEffect(() => {
+    if (!user) return
+
+    Promise.all([
+      fetch("/api/stats").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/sessions?limit=5").then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([statsData, sessionsData]: [StatsData | null, { sessions?: SessionSummary[] } | null]) => {
+        if (statsData) setStats(statsData)
+        if (sessionsData?.sessions) {
+          setSessions(sessionsData.sessions)
+          const active = sessionsData.sessions.find((s: SessionSummary) => s.status === "active")
+          if (active) setActiveSession(active)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingData(false))
+  }, [user])
+
+  const handleNewSession = () => {
+    router.push("/task")
+  }
+
+  const handleQuickFocus = async () => {
+    try {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Quick Focus", mode: "single" }),
+      })
+      if (res.ok) {
+        const session = await res.json()
+        setMainTask("Quick Focus")
+        setMode("single")
+        setSessionId(session.id)
+
+        // Create a single 25-minute task
+        await fetch(`/api/sessions/${session.id}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tasks: [{ title: "Quick Focus", description: "25-minute focus session", estimated_seconds: 1500 }],
+          }),
+        })
+
+        router.push(`/timer?session=${session.id}`)
+      }
+    } catch {
+      router.push("/task")
+    }
+  }
+
+  const handleResumeSession = (session: SessionSummary) => {
+    const step = session.current_step ?? "timer"
+    router.push(`/${step}?session=${session.id}`)
+  }
+
+  const formatHrs = (seconds: number) => {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    return h > 0 ? `${h}h ${m}m` : `${m}m`
+  }
+
+  if (authLoading || (!user && !authLoading)) {
+    return <div className="min-h-screen bg-hero" />
+  }
+
+  return (
+    <div className="relative min-h-screen bg-hero px-6 py-10">
+      <TopBar />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 pt-12">
+        {/* Welcome */}
+        <header className="space-y-1">
+          <h1 className="text-3xl font-semibold">
+            Welcome back{profile?.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Your AI Focus Partner &middot; Ready when you are
+          </p>
+        </header>
+
+        {/* Active session banner */}
+        {activeSession && (
+          <Card className="flex items-center justify-between border-brand/30 bg-brand/5 p-4">
+            <div>
+              <p className="text-sm font-medium">Active session</p>
+              <p className="text-lg font-semibold">{activeSession.title}</p>
+            </div>
+            <Button className="rounded-full" onClick={() => handleResumeSession(activeSession)}>
+              Resume
+            </Button>
+          </Card>
+        )}
+
+        {/* Quick actions */}
+        <div className="flex flex-wrap gap-3">
+          <Button className="rounded-full gap-2 px-6" onClick={handleQuickFocus}>
+            <Zap className="h-4 w-4" />
+            Quick Focus (25 min)
+          </Button>
+          <Button variant="outline" className="rounded-full gap-2 px-6" onClick={handleNewSession}>
+            <Plus className="h-4 w-4" />
+            New Session
+          </Button>
+        </div>
+
+        {/* Stats + Chart */}
+        {loadingData ? (
+          <Card className="p-6 text-sm text-muted-foreground">Loading your stats...</Card>
+        ) : stats ? (
+          <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+            {/* Weekly chart */}
+            {stats.dailyStats.length > 0 ? (
+              <ReportChart data={stats.dailyStats} />
+            ) : (
+              <Card className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                Complete a session to see your weekly chart
+              </Card>
+            )}
+
+            {/* Stats cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="space-y-1 p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs">Total Focus</span>
+                </div>
+                <p className="text-xl font-bold">{stats.totalFocusHours.toFixed(1)}h</p>
+              </Card>
+              <Card className="space-y-1 p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Flame className="h-4 w-4" />
+                  <span className="text-xs">Streak</span>
+                </div>
+                <p className="text-xl font-bold">{stats.longestStreak}d</p>
+              </Card>
+              <Card className="space-y-1 p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Target className="h-4 w-4" />
+                  <span className="text-xs">Completion</span>
+                </div>
+                <p className="text-xl font-bold">{stats.completionRate}%</p>
+              </Card>
+              <Card className="space-y-1 p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs">This Week</span>
+                </div>
+                <p className="text-xl font-bold">{stats.thisWeekHours.toFixed(1)}h</p>
+              </Card>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Recent sessions */}
+        {sessions.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">Recent Sessions</h2>
+            <div className="space-y-2">
+              {sessions.map((s) => (
+                <Card
+                  key={s.id}
+                  className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-accent/50"
+                  onClick={() => handleResumeSession(s)}
+                >
+                  <div>
+                    <p className="font-medium">{s.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(s.created_at).toLocaleDateString()} &middot;{" "}
+                      {formatHrs(s.total_actual_seconds ?? 0)} focused &middot;{" "}
+                      <span className="capitalize">{s.status}</span>
+                    </p>
+                  </div>
+                  {s.status === "active" && (
+                    <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                      Active
+                    </span>
+                  )}
+                  {s.status === "completed" && (
+                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+                      Completed
+                    </span>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
