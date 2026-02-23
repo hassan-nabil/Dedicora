@@ -7,6 +7,7 @@ import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ReportChart, type ChartDatum } from "@/components/report-chart"
+import { TaskComparisonChart, type ComparisonDatum } from "@/components/task-comparison-chart"
 import { useFlow } from "@/components/providers/flow-provider"
 import { formatTime, toSeconds } from "@/lib/time"
 
@@ -91,6 +92,15 @@ function ReportContent() {
     }
   }, [generateReport, loading, report])
 
+  // Comparison chart data — estimated vs actual per task (minutes)
+  const comparisonData: ComparisonDatum[] = React.useMemo(() => {
+    return enrichedTasks.map((t) => ({
+      name: t.title.length > 14 ? t.title.slice(0, 12) + "…" : t.title,
+      estimated: +(t.estimated_seconds / 60).toFixed(1),
+      actual: +(t.actual_seconds / 60).toFixed(1),
+    }))
+  }, [enrichedTasks])
+
   // Summary stats
   const totalEstimated = enrichedTasks.reduce((s, t) => s + t.estimated_seconds, 0)
   const totalActual = enrichedTasks.reduce((s, t) => s + t.actual_seconds, 0)
@@ -138,6 +148,11 @@ function ReportContent() {
             New Session
           </Button>
         </div>
+
+        {/* Actual vs Estimated comparison — always visible when tasks exist */}
+        {comparisonData.length > 0 && totalActual > 0 && (
+          <TaskComparisonChart data={comparisonData} />
+        )}
 
         {report ? (
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
