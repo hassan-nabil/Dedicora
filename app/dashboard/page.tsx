@@ -2,12 +2,13 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Zap, Clock, Flame, Target } from "lucide-react"
+import { Plus, Zap, Clock, Flame, Target, Pause, Play, Rocket } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ReportChart, type ChartDatum } from "@/components/report-chart"
+import { OnboardingModal } from "@/components/onboarding-modal"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useFlow } from "@/components/providers/flow-provider"
 
@@ -39,6 +40,7 @@ export default function DashboardPage() {
   const [stats, setStats] = React.useState<StatsData | null>(null)
   const [sessions, setSessions] = React.useState<SessionSummary[]>([])
   const [activeSession, setActiveSession] = React.useState<SessionSummary | null>(null)
+  const [pausedSessions, setPausedSessions] = React.useState<SessionSummary[]>([])
   const [loadingData, setLoadingData] = React.useState(true)
 
   // Redirect to login if not authenticated
@@ -62,6 +64,7 @@ export default function DashboardPage() {
           setSessions(sessionsData.sessions)
           const active = sessionsData.sessions.find((s: SessionSummary) => s.status === "active")
           if (active) setActiveSession(active)
+          setPausedSessions(sessionsData.sessions.filter((s: SessionSummary) => s.status === "paused"))
         }
       })
       .catch(() => {})
@@ -106,6 +109,50 @@ export default function DashboardPage() {
     router.push(`/${step}?session=${session.id}`)
   }
 
+  const handlePauseSession = async (session: SessionSummary) => {
+    try {
+      await fetch(`/api/sessions/${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paused" }),
+      })
+      setActiveSession(null)
+      setPausedSessions((prev) => [...prev, { ...session, status: "paused" }])
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? { ...s, status: "paused" } : s))
+      )
+    } catch {
+      // Silently fail
+    }
+  }
+
+  const handleUnpauseSession = async (session: SessionSummary) => {
+    try {
+      // Abandon any current active session first
+      if (activeSession) {
+        await fetch(`/api/sessions/${activeSession.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "abandoned" }),
+        })
+      }
+      await fetch(`/api/sessions/${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      })
+      const resumed = { ...session, status: "active" }
+      setActiveSession(resumed)
+      setPausedSessions((prev) => prev.filter((s) => s.id !== session.id))
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? resumed : s))
+      )
+      handleResumeSession(resumed)
+    } catch {
+      // Silently fail
+    }
+  }
+
   const formatHrs = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
     const m = Math.floor((seconds % 3600) / 60)
@@ -119,7 +166,8 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen bg-hero px-6 py-10">
       <TopBar />
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 pt-12">
+      <OnboardingModal />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 pt-16 sm:pt-12">
         {/* Welcome */}
         <header className="space-y-1">
           <h1 className="text-3xl font-semibold">
@@ -132,15 +180,39 @@ export default function DashboardPage() {
 
         {/* Active session banner */}
         {activeSession && (
-          <Card className="flex items-center justify-between border-brand/30 bg-brand/5 p-4">
+          <Card className="flex flex-wrap items-center justify-between gap-3 border-brand/30 bg-brand/5 p-4">
             <div>
               <p className="text-sm font-medium">Active session</p>
               <p className="text-lg font-semibold">{activeSession.title}</p>
             </div>
-            <Button className="rounded-full" onClick={() => handleResumeSession(activeSession)}>
-              Resume
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="rounded-full gap-2" onClick={() => handlePauseSession(activeSession)}>
+                <Pause className="h-4 w-4" />
+                Pause
+              </Button>
+              <Button className="rounded-full" onClick={() => handleResumeSession(activeSession)}>
+                Resume
+              </Button>
+            </div>
           </Card>
+        )}
+
+        {/* Paused sessions */}
+        {pausedSessions.length > 0 && (
+          <div className="space-y-2">
+            {pausedSessions.map((s) => (
+              <Card key={s.id} className="flex flex-wrap items-center justify-between gap-3 border-yellow-500/30 bg-yellow-500/5 p-4">
+                <div>
+                  <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Paused</p>
+                  <p className="text-lg font-semibold">{s.title}</p>
+                </div>
+                <Button className="rounded-full gap-2" onClick={() => handleUnpauseSession(s)}>
+                  <Play className="h-4 w-4" />
+                  Resume
+                </Button>
+              </Card>
+            ))}
+          </div>
         )}
 
         {/* Quick actions */}
@@ -204,7 +276,7 @@ export default function DashboardPage() {
         ) : null}
 
         {/* Recent sessions */}
-        {sessions.length > 0 && (
+        {sessions.length > 0 ? (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold">Recent Sessions</h2>
             <div className="space-y-2">
@@ -212,10 +284,14 @@ export default function DashboardPage() {
                 <Card
                   key={s.id}
                   className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-accent/50"
-                  onClick={() => handleResumeSession(s)}
+                  onClick={() =>
+                    s.status === "completed"
+                      ? router.push(`/report/${s.id}`)
+                      : handleResumeSession(s)
+                  }
                 >
-                  <div>
-                    <p className="font-medium">{s.title}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{s.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(s.created_at).toLocaleDateString()} &middot;{" "}
                       {formatHrs(s.total_actual_seconds ?? 0)} focused &middot;{" "}
@@ -232,11 +308,32 @@ export default function DashboardPage() {
                       Completed
                     </span>
                   )}
+                  {s.status === "paused" && (
+                    <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-600">
+                      Paused
+                    </span>
+                  )}
                 </Card>
               ))}
             </div>
           </div>
-        )}
+        ) : !loadingData ? (
+          <Card className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+              <Rocket className="h-7 w-7 text-brand" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">No sessions yet</h2>
+              <p className="text-sm text-muted-foreground">
+                Start your first focus session to begin tracking your productivity.
+              </p>
+            </div>
+            <Button className="rounded-full gap-2 px-6" onClick={handleNewSession}>
+              <Plus className="h-4 w-4" />
+              Start First Session
+            </Button>
+          </Card>
+        ) : null}
       </main>
     </div>
   )
