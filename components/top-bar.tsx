@@ -13,7 +13,7 @@ export function TopBar({ showSidebar = false }: { showSidebar?: boolean }) {
   const { user, profile, signOut } = useAuth()
 
   return (
-    <div className="absolute right-6 top-6 flex items-center gap-2">
+    <div className="absolute right-4 top-4 flex flex-wrap items-center justify-end gap-1.5 sm:right-6 sm:top-6 sm:gap-2">
       {user && (
         <Button
           variant="ghost"

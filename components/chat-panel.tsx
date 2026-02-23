@@ -174,7 +174,7 @@ export function ChatPanel({ open, onOpenChange }: ChatPanelProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="flex h-[85vh] w-full max-w-2xl flex-col rounded-3xl border bg-background shadow-2xl">
+      <div className="flex h-full w-full flex-col border bg-background shadow-2xl sm:h-[85vh] sm:max-w-2xl sm:rounded-3xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-3">
