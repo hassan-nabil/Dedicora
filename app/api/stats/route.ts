@@ -153,7 +153,7 @@ export async function GET() {
 
       return {
         name,
-        hours: Math.round((daySeconds / 3600) * 10) / 10,
+        value: Math.round((daySeconds / 3600) * 10) / 10,
       }
     })
 
