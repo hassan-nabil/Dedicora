@@ -74,13 +74,10 @@ function TimerContent() {
 
   // Load session from DB if URL has session param
   React.useEffect(() => {
-    if (sessionParam && !loaded && !sessionId) {
-      setLoaded(true)
-      setSessionId(sessionParam)
-      loadSession(sessionParam)
-    } else if (sessionParam && !sessionId) {
-      setSessionId(sessionParam)
-    }
+    if (!sessionParam || loaded) return
+    setLoaded(true)
+    if (!sessionId) setSessionId(sessionParam)
+    loadSession(sessionParam)
   }, [sessionParam, loaded, sessionId, setSessionId, loadSession])
 
   // Initialize timer when task INDEX changes (not object reference)
