@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot } from "lucide-react"
+import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot, Coffee, SkipForward } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,19 @@ import { TaskSidebar } from "@/components/task-sidebar"
 import { NotesPanel } from "@/components/notes-panel"
 import { ChatPanel } from "@/components/chat-panel"
 import { useFlow } from "@/components/providers/flow-provider"
+import { useSettings } from "@/components/providers/settings-provider"
 import { formatTime, toSeconds } from "@/lib/time"
+
+const breakSuggestions = [
+  "Stand up and stretch your arms overhead 🙆",
+  "Drink a glass of water — stay hydrated 💧",
+  "Close your eyes and take 5 deep breaths 🧘",
+  "Look at something 20 feet away for 20 seconds 👀",
+  "Roll your shoulders and neck gently 🔄",
+  "Walk around the room for a minute 🚶",
+  "Do 10 quick squats to get blood flowing 🏋️",
+  "Grab a healthy snack — your brain needs fuel 🍎",
+]
 
 function TimerContent() {
   const router = useRouter()
@@ -22,6 +34,7 @@ function TimerContent() {
     taskList, currentTaskIndex, setCurrentTaskIndex, markTaskDone,
     sessionId, setSessionId, loadSession,
   } = useFlow()
+  const { breakMinutes } = useSettings()
 
   const [isRunning, setIsRunning] = React.useState(true)
   const [isFinished, setIsFinished] = React.useState(false)
@@ -31,6 +44,12 @@ function TimerContent() {
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [chatOpen, setChatOpen] = React.useState(false)
   const [loaded, setLoaded] = React.useState(false)
+
+  // Break state
+  const [isOnBreak, setIsOnBreak] = React.useState(false)
+  const [breakRemaining, setBreakRemaining] = React.useState(0)
+  const [breakSuggestion, setBreakSuggestion] = React.useState("")
+  const pendingNextIndexRef = React.useRef<number | null>(null)
 
   // Track actual time spent on current task
   const actualSecondsRef = React.useRef(0)
@@ -185,6 +204,45 @@ function TimerContent() {
     return () => window.clearInterval(persistTimer)
   }, [sessionId, sessionParam, isRunning, currentTask, currentTaskIndex, overtime, taskList])
 
+  // Start a break before advancing to the next task
+  const startBreak = React.useCallback((nextIndex: number) => {
+    pendingNextIndexRef.current = nextIndex
+    setBreakSuggestion(breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)])
+    setBreakRemaining(breakMinutes * 60)
+    setIsOnBreak(true)
+    setIsRunning(false)
+  }, [breakMinutes])
+
+  // Skip or finish break — advance to next task
+  const finishBreak = React.useCallback(() => {
+    setIsOnBreak(false)
+    setBreakRemaining(0)
+    const nextIdx = pendingNextIndexRef.current
+    pendingNextIndexRef.current = null
+    if (nextIdx !== null && nextIdx < taskList.length) {
+      lastInitIndexRef.current = -1
+      setCurrentTaskIndex(nextIdx)
+      setIsRunning(true)
+    }
+  }, [taskList.length, setCurrentTaskIndex])
+
+  // Break countdown timer
+  React.useEffect(() => {
+    if (!isOnBreak || breakRemaining <= 0) {
+      if (isOnBreak && breakRemaining <= 0) finishBreak()
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setBreakRemaining((prev) => {
+        if (prev <= 1) return 0
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [isOnBreak, breakRemaining, finishBreak])
+
   const handlePrev = () => {
     if (currentTaskIndex === 0) return
     saveCurrentTimerState()
@@ -233,11 +291,10 @@ function TimerContent() {
       }
     }
 
-    // Auto-advance to next incomplete task
+    // Auto-advance to next incomplete task (via break)
     const nextIncomplete = taskList.findIndex((t, i) => i > currentTaskIndex && !t.done)
     if (nextIncomplete !== -1) {
-      lastInitIndexRef.current = -1
-      setCurrentTaskIndex(nextIncomplete)
+      startBreak(nextIncomplete)
     } else {
       // No more tasks — stay on current, show finished state
       setIsFinished(true)
@@ -295,21 +352,22 @@ function TimerContent() {
       <TaskSidebar />
 
       {/* Persistent navigation buttons - always visible */}
-      <div className="absolute left-6 top-6 flex items-center gap-2">
+      <div className="absolute left-4 top-16 flex flex-col items-start gap-2 sm:left-6 sm:top-6 sm:flex-row sm:items-center">
         <Button
           variant="outline"
           className="rounded-full"
           onClick={() => router.push("/task")}
         >
           <CornerUpLeft className="mr-2 h-4 w-4" />
-          Back to Tasks
+          <span className="hidden sm:inline">Back to Tasks</span>
+          <span className="sm:hidden">Tasks</span>
         </Button>
         <Button
           variant="outline"
           className="rounded-full"
           onClick={() => setNotesOpen(true)}
         >
-          My Notes
+          Notes
         </Button>
         <Button
           variant="outline"
@@ -317,7 +375,8 @@ function TimerContent() {
           onClick={() => setChatOpen(true)}
         >
           <Bot className="mr-2 h-4 w-4" />
-          AI Assistant
+          <span className="hidden sm:inline">AI Assistant</span>
+          <span className="sm:hidden">AI</span>
         </Button>
       </div>
 
@@ -336,13 +395,48 @@ function TimerContent() {
             </Button>
           </div>
         </main>
+      ) : isOnBreak ? (
+        /* Break screen — shown between tasks */
+        <main className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col items-center justify-center gap-8 text-center">
+          <div className="space-y-6 rounded-4xl border border-brand/30 bg-card/80 p-6 shadow-(--shadow-strong) sm:p-12">
+            <Stickman state="break" />
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 text-brand">
+                <Coffee className="h-6 w-6" />
+                <h1 className="text-3xl font-bold">Take a Break</h1>
+              </div>
+              <div className="rounded-2xl border bg-card/70 px-4 py-4 text-3xl font-semibold tracking-[0.15em] text-brand shadow-(--shadow-soft) sm:px-8 sm:text-5xl">
+                {formatTime(breakRemaining)}
+              </div>
+              <p className="mx-auto max-w-sm text-base text-muted-foreground">
+                {breakSuggestion}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+              <Button
+                className="rounded-full px-8"
+                onClick={finishBreak}
+              >
+                <SkipForward className="mr-2 h-4 w-4" />
+                Skip Break
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-6"
+                onClick={() => setBreakRemaining((prev) => prev + 60)}
+              >
+                +1 min
+              </Button>
+            </div>
+          </div>
+        </main>
       ) : allTasksDone ? (
         /* Congratulations screen — shown only when ALL tasks are complete */
         <main className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col items-center justify-center gap-8 text-center">
-          <div className="space-y-6 rounded-4xl border bg-card/80 p-12 shadow-(--shadow-strong)">
+          <div className="space-y-6 rounded-4xl border bg-card/80 p-6 shadow-(--shadow-strong) sm:p-12">
             <Stickman state="done" />
             <div className="space-y-3">
-              <h1 className="text-4xl font-bold text-gradient">
+              <h1 className="text-2xl font-bold text-gradient sm:text-4xl">
                 Congratulations! 🎉
               </h1>
               <p className="text-lg text-muted-foreground">
@@ -380,7 +474,7 @@ function TimerContent() {
               <Stickman state={stickmanState} />
             </div>
             <div className="flex flex-col items-center gap-8">
-              <div className="rounded-4xl border bg-card/70 px-10 py-8 text-6xl font-semibold tracking-[0.15em] text-brand shadow-(--shadow-strong)">
+              <div className="rounded-4xl border bg-card/70 px-6 py-8 text-4xl font-semibold tracking-[0.15em] text-brand shadow-(--shadow-strong) sm:px-10 sm:text-6xl">
                 {displayTime}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4">
