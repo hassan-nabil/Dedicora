@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { LayoutPanelLeft, Settings, LayoutDashboard, LogOut, Heart } from "lucide-react"
+import { LayoutPanelLeft, Settings, Home, LogOut, Heart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -22,7 +22,7 @@ export function TopBar({ showSidebar = false }: { showSidebar?: boolean }) {
           onClick={() => router.push("/dashboard")}
           aria-label="Dashboard"
         >
-          <LayoutDashboard className="h-5 w-5" />
+          <Home className="h-5 w-5" />
         </Button>
       )}
       {showSidebar && (

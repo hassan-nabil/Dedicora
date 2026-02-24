@@ -70,25 +70,167 @@
     --shadow-strong: 0 24px 70px hsl(240 40% 2% / 0.75);
   }
 
-  /* Color Blind Modes - Using data attributes */
-  /* Protanopia (Red-blind) - High Contrast Blues/Yellows */
+  /* ===================================================
+     Color Blind Modes — Full UI overrides
+     Each mode changes backgrounds, cards, borders,
+     brand, accent, destructive, muted, and shadows
+     for both light and dark themes.
+     =================================================== */
+
+  /* --- Protanopia (Red-blind) — Blue / Yellow palette --- */
   [data-color-blind="protanopia"] {
-    --primary: 200 100% 40%;
-    --primary-foreground: 60 100% 95%;
-    --destructive: 45 100% 50%; /* Yellow instead of red */
-    /* Adjust other colors as needed */
+    --background: 210 30% 98%;
+    --foreground: 215 50% 10%;
+    --card: 210 25% 96%;
+    --card-foreground: 215 50% 10%;
+    --popover: 210 25% 96%;
+    --popover-foreground: 215 50% 10%;
+    --primary: 210 80% 45%;
+    --primary-foreground: 210 100% 98%;
+    --secondary: 48 80% 90%;
+    --secondary-foreground: 215 50% 10%;
+    --muted: 210 20% 92%;
+    --muted-foreground: 215 15% 45%;
+    --accent: 48 85% 55%;
+    --accent-foreground: 215 50% 10%;
+    --destructive: 45 100% 45%;
+    --destructive-foreground: 215 50% 10%;
+    --border: 210 25% 85%;
+    --input: 210 25% 85%;
+    --ring: 210 80% 45%;
+    --brand: 210 85% 50%;
+    --brand-2: 48 90% 50%;
+    --shadow-soft: 0 12px 40px hsl(210 30% 50% / 0.12);
+    --shadow-strong: 0 24px 70px hsl(210 30% 50% / 0.2);
+  }
+  .dark[data-color-blind="protanopia"] {
+    --background: 215 50% 7%;
+    --foreground: 210 30% 95%;
+    --card: 215 45% 10%;
+    --card-foreground: 210 30% 95%;
+    --popover: 215 45% 10%;
+    --popover-foreground: 210 30% 95%;
+    --primary: 210 80% 60%;
+    --primary-foreground: 215 50% 7%;
+    --secondary: 48 50% 20%;
+    --secondary-foreground: 210 30% 95%;
+    --muted: 215 35% 15%;
+    --muted-foreground: 210 20% 60%;
+    --accent: 48 70% 45%;
+    --accent-foreground: 210 30% 95%;
+    --destructive: 45 90% 40%;
+    --destructive-foreground: 210 30% 95%;
+    --border: 215 35% 18%;
+    --input: 215 35% 18%;
+    --ring: 210 80% 60%;
+    --brand: 210 85% 55%;
+    --brand-2: 48 85% 50%;
+    --shadow-soft: 0 12px 40px hsl(215 50% 3% / 0.55);
+    --shadow-strong: 0 24px 70px hsl(215 50% 3% / 0.75);
   }
 
-  /* Deuteranopia (Green-blind) */
+  /* --- Deuteranopia (Green-blind) — Blue / Orange palette --- */
   [data-color-blind="deuteranopia"] {
-    --primary: 240 60% 50%;
+    --background: 220 25% 98%;
+    --foreground: 225 45% 10%;
+    --card: 220 20% 96%;
+    --card-foreground: 225 45% 10%;
+    --popover: 220 20% 96%;
+    --popover-foreground: 225 45% 10%;
+    --primary: 230 70% 50%;
+    --primary-foreground: 220 100% 98%;
+    --secondary: 30 80% 90%;
+    --secondary-foreground: 225 45% 10%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 225 12% 45%;
+    --accent: 30 90% 55%;
+    --accent-foreground: 225 45% 10%;
     --destructive: 30 100% 50%;
+    --destructive-foreground: 225 45% 10%;
+    --border: 220 20% 85%;
+    --input: 220 20% 85%;
+    --ring: 230 70% 50%;
+    --brand: 230 75% 55%;
+    --brand-2: 30 95% 50%;
+    --shadow-soft: 0 12px 40px hsl(220 25% 50% / 0.12);
+    --shadow-strong: 0 24px 70px hsl(220 25% 50% / 0.2);
+  }
+  .dark[data-color-blind="deuteranopia"] {
+    --background: 225 45% 7%;
+    --foreground: 220 25% 95%;
+    --card: 225 40% 10%;
+    --card-foreground: 220 25% 95%;
+    --popover: 225 40% 10%;
+    --popover-foreground: 220 25% 95%;
+    --primary: 230 70% 60%;
+    --primary-foreground: 225 45% 7%;
+    --secondary: 30 45% 20%;
+    --secondary-foreground: 220 25% 95%;
+    --muted: 225 30% 15%;
+    --muted-foreground: 220 18% 60%;
+    --accent: 30 75% 45%;
+    --accent-foreground: 220 25% 95%;
+    --destructive: 30 90% 40%;
+    --destructive-foreground: 220 25% 95%;
+    --border: 225 30% 18%;
+    --input: 225 30% 18%;
+    --ring: 230 70% 60%;
+    --brand: 230 75% 58%;
+    --brand-2: 30 90% 50%;
+    --shadow-soft: 0 12px 40px hsl(225 45% 3% / 0.55);
+    --shadow-strong: 0 24px 70px hsl(225 45% 3% / 0.75);
   }
 
-  /* Tritanopia (Blue-blind) */
+  /* --- Tritanopia (Blue-blind) — Red / Teal palette --- */
   [data-color-blind="tritanopia"] {
-    --primary: 10 80% 50%; /* Reds/Pinks */
-    --accent: 180 50% 50%; /* Teals */
+    --background: 0 15% 98%;
+    --foreground: 350 40% 10%;
+    --card: 0 12% 96%;
+    --card-foreground: 350 40% 10%;
+    --popover: 0 12% 96%;
+    --popover-foreground: 350 40% 10%;
+    --primary: 350 75% 45%;
+    --primary-foreground: 0 100% 98%;
+    --secondary: 175 50% 88%;
+    --secondary-foreground: 350 40% 10%;
+    --muted: 0 10% 92%;
+    --muted-foreground: 350 12% 45%;
+    --accent: 175 60% 40%;
+    --accent-foreground: 0 100% 98%;
+    --destructive: 350 85% 50%;
+    --destructive-foreground: 0 100% 98%;
+    --border: 0 12% 85%;
+    --input: 0 12% 85%;
+    --ring: 350 75% 45%;
+    --brand: 350 80% 50%;
+    --brand-2: 175 65% 40%;
+    --shadow-soft: 0 12px 40px hsl(350 20% 50% / 0.12);
+    --shadow-strong: 0 24px 70px hsl(350 20% 50% / 0.2);
+  }
+  .dark[data-color-blind="tritanopia"] {
+    --background: 350 35% 7%;
+    --foreground: 0 15% 95%;
+    --card: 350 30% 10%;
+    --card-foreground: 0 15% 95%;
+    --popover: 350 30% 10%;
+    --popover-foreground: 0 15% 95%;
+    --primary: 350 75% 60%;
+    --primary-foreground: 350 35% 7%;
+    --secondary: 175 35% 18%;
+    --secondary-foreground: 0 15% 95%;
+    --muted: 350 25% 15%;
+    --muted-foreground: 0 10% 60%;
+    --accent: 175 55% 40%;
+    --accent-foreground: 0 15% 95%;
+    --destructive: 350 80% 45%;
+    --destructive-foreground: 0 15% 95%;
+    --border: 350 25% 18%;
+    --input: 350 25% 18%;
+    --ring: 350 75% 60%;
+    --brand: 350 80% 55%;
+    --brand-2: 175 60% 42%;
+    --shadow-soft: 0 12px 40px hsl(350 35% 3% / 0.55);
+    --shadow-strong: 0 24px 70px hsl(350 35% 3% / 0.75);
   }
 }
 

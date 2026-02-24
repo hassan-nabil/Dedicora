@@ -42,7 +42,7 @@ function AssignContent() {
 
   const { mainTask, setMode, setTaskTree, setTaskList, sessionId, setSessionId, loadSession } = useFlow()
 
-  const [loading, setLoading] = React.useState(mode === "breakdown")
+  const [loading, setLoading] = React.useState(false)
   const [summary, setSummary] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [tasks, setTasks] = React.useState<DraftTask[]>([])

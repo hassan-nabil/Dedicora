@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot, Coffee, SkipForward, X } from "lucide-react"
+import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot, Coffee, SkipForward, X, Plus } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -540,6 +540,17 @@ function TimerContent() {
                   onClick={handleNext}
                 >
                   <ArrowRight className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-full px-4 gap-1 text-sm"
+                  onClick={() => {
+                    setRemaining((prev) => prev + 300)
+                    setCountingForward(false)
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  5 min
                 </Button>
               </div>
             </div>
