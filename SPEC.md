@@ -14,7 +14,7 @@
 5. [Database Schema](#5-database-schema)
 6. [API Routes](#6-api-routes)
 7. [Page-by-Page Spec](#7-page-by-page-spec)
-8. [Free vs Pro Tiers](#8-free-vs-pro-tiers)
+8. [Monetization — Donation Model](#8-monetization--donation-model)
 9. [AI System Design](#9-ai-system-design)
 10. [Phase Execution Plan](#10-phase-execution-plan)
 11. [Tech Stack](#11-tech-stack)
@@ -51,11 +51,10 @@
 | **Auth & Database** | Supabase (Auth + Postgres + Realtime) | All-in-one, generous free tier, realtime for future social features |
 | **Auth Method** | Google OAuth only | Lowest friction for target audience |
 | **Deployment** | Vercel | Native Next.js home, better DX than Amplify |
-| **Payments** | Stripe | Industry standard, best docs |
-| **Pricing** | $4.99/mo (annual: $49.99/yr) | Student-friendly, impulse-buy territory |
-| **Free Tier** | Unlimited sessions, 30-day history | Generous enough to be genuinely useful |
-| **Pro Features** | AI memory + Advanced analytics | Free product is fully functional; Pro adds depth |
+| **Monetization** | PayPal donation (paypal.me/Billionareh) | Donation-based, no paywall |
+| **Features** | All features free for everyone | No tiers, no restrictions |
 | **Branding** | "Dedicora — Your AI Focus Partner" | Keep name, add tagline |
+| **Scope** | Individual use only | No social/sharing features |
 | **Phase 1 Scope** | Full foundation | Auth + DB + persistence + dashboard + quick-start |
 
 ---
@@ -105,9 +104,6 @@
 /api/sessions/[id]    → Single session operations
 /api/tasks/[id]       → Update individual tasks
 /api/stats            → User statistics
-/api/stripe/checkout  → Create Stripe checkout session
-/api/stripe/webhook   → Stripe webhook handler
-/api/stripe/portal    → Stripe customer portal redirect
 /api/gemini/task      → AI task breakdown (existing)
 /api/gemini/report    → AI report generation (existing, enhanced)
 /api/gemini/chat      → AI chat assistant (existing, enhanced with memory)
@@ -395,20 +391,13 @@ Authentication is handled client-side by `@supabase/ssr` — the Supabase client
 |--------|-------|-------------|---------------------|
 | POST | `/api/gemini/task` | Break down a task into sub-tasks | No change needed |
 | POST | `/api/gemini/report` | Generate productivity report | Now receives real timing data from DB |
-| POST | `/api/gemini/chat` | Streaming AI chat | Now stores messages in DB; Pro users get cross-session memory |
+| POST | `/api/gemini/chat` | Streaming AI chat | Now stores messages in DB |
 
-**Chat enhancement for Pro users:**
-- Before sending to Gemini, fetch summaries of the user's last 5 sessions from DB
-- Inject into the system prompt: "This user has previously worked on [X, Y, Z]. Their average session is N minutes. They tend to underestimate time by ~30%."
-- This makes the AI feel personal and aware
+### 6.7 PayPal Donation
 
-### 6.7 Stripe
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/stripe/checkout` | Creates a Stripe Checkout session. Body: `{ priceId, successUrl, cancelUrl }`. Returns `{ url }`. |
-| POST | `/api/stripe/webhook` | Handles Stripe events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Updates `profiles.subscription_tier` accordingly. |
-| GET | `/api/stripe/portal` | Creates a Stripe Customer Portal session for managing subscription. Returns `{ url }`. |
+- "Support Dedicora" button on the dashboard and heart icon in the top bar
+- Opens `https://paypal.me/Billionareh` in a new tab
+- No backend integration needed — purely external link
 
 ---
 
@@ -439,7 +428,7 @@ sits with you while you work, and celebrates when you finish.
 **Content (below the fold):**
 - "How it works" — 3 steps: Describe → Focus → Finish
 - "Features" — AI breakdown, smart timer, AI chat, reports
-- "Pricing" — Free vs Pro comparison table
+
 - Footer with links
 
 ### 7.2 Dashboard — `/dashboard` (NEW)
@@ -449,7 +438,7 @@ sits with you while you work, and celebrates when you finish.
 **Layout:**
 ```
 ┌─────────────────────────────────────────────────────┐
-│  [TopBar: Logo | "Dashboard" | Settings ⚙️ | Avatar] │
+│  [TopBar: Logo | "Dashboard" | Settings ⚙️ | Account] │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  Welcome back, Hassan!              🔥 7-day streak │
@@ -461,7 +450,7 @@ sits with you while you work, and celebrates when you finish.
 │  └───────────────────────────────────────────────┘  │
 │                                                     │
 │  ┌─ Quick Actions ───────────────────────────────┐  │
-│  │  [▶ Quick Focus (25 min)]  [+ New Session]    │  │
+│  │  [+ New Session]    │  │
 │  └───────────────────────────────────────────────┘  │
 │                                                     │
 │  ┌─ This Week ───────────────────────────────────┐  │
@@ -522,48 +511,36 @@ sits with you while you work, and celebrates when you finish.
 
 **New sections:**
 - **Account:** Display name, avatar (from Google), email (read-only)
-- **Subscription:** Current plan, upgrade/manage button (Stripe portal)
 - **Preferences:** Audio, theme, color-blind mode (existing), + default work/break duration (new)
 - All settings sync to `user_settings` table in Supabase
 
 ---
 
-## 8. Free vs Pro Tiers
+## 8. Monetization — Donation Model
 
-### 8.1 Feature Matrix
+All features are **free for everyone**. Dedicora runs on voluntary donations.
 
-| Feature | Free | Pro ($4.99/mo) |
-|---------|------|-----------------|
-| Focus sessions | ✅ Unlimited | ✅ Unlimited |
-| AI task breakdown | ✅ | ✅ |
-| AI chat assistant | ✅ | ✅ |
-| AI productivity report | ✅ | ✅ |
-| Timer + breaks | ✅ | ✅ |
-| Notes | ✅ | ✅ |
-| Session history | 30 days | ✅ Unlimited |
-| Streaks | ✅ Basic (current + longest) | ✅ Detailed (calendar heatmap) |
-| **AI companion memory** | ❌ | ✅ Remembers past sessions |
-| **Advanced analytics** | ❌ | ✅ Trends, patterns, weekly/monthly reports |
-| **Priority AI** | ❌ | ✅ Faster responses, longer context |
-| Customization (themes, audio) | ✅ | ✅ |
-| Color-blind modes | ✅ | ✅ |
+### 8.1 Feature List (All Free)
 
-### 8.2 Pricing
+| Feature | Available |
+|---------|-----------|
+| Focus sessions | ✅ Unlimited |
+| AI task breakdown | ✅ |
+| AI chat assistant | ✅ |
+| AI productivity report | ✅ |
+| Timer + breaks | ✅ |
+| Notes | ✅ |
+| Session history | ✅ Unlimited |
+| Streaks | ✅ |
+| AI companion memory | ✅ |
+| Customization (themes, audio) | ✅ |
+| Color-blind modes | ✅ |
 
-| Plan | Monthly | Annual |
-|------|---------|--------|
-| Free | $0 | $0 |
-| Pro | $6.99/mo | $49.99/yr ($4.17/mo) |
+### 8.2 Donation
 
-**Annual discount is the primary CTA.** The monthly price exists to make annual feel like a deal.
-
-### 8.3 Upgrade Triggers
-
-Show upgrade prompts at natural moments, never interrupt the flow:
-- On the report page: "Unlock trends & insights across all your sessions → Go Pro"
-- In chat: "Pro users get an AI that remembers your work patterns → Upgrade"
-- On dashboard after 30 days: "Your oldest sessions will be archived soon → Keep them with Pro"
-- Never gate core functionality. The free product must be genuinely useful.
+- PayPal link: `https://paypal.me/Billionareh`
+- "Support Dedicora" button on dashboard + heart icon in top bar
+- No paywall, no gating, no upgrade prompts
 
 ---
 
@@ -695,46 +672,33 @@ Implementation: A client-side interval (every 60s) checks conditions and trigger
 - [ ] After a work block, a break timer starts automatically
 - [ ] Users can view any past session's report
 
-### Phase 3: Monetization (Weeks 6-7)
+### Phase 3: AI Enhancements (Weeks 6-7)
 
-**Goal:** Pro tier is live, users can pay, and Pro features work.
+**Goal:** AI features are richer — memory across sessions and better analytics for all users.
 
 | # | Task | Priority |
 |---|------|----------|
-| 3.1 | Set up Stripe account, create products/prices | P0 |
-| 3.2 | Implement `/api/stripe/checkout` | P0 |
-| 3.3 | Implement `/api/stripe/webhook` (subscription lifecycle) | P0 |
-| 3.4 | Implement `/api/stripe/portal` | P0 |
-| 3.5 | Add subscription status checks throughout the app | P0 |
-| 3.6 | Build upgrade/pricing UI (on dashboard + settings) | P0 |
-| 3.7 | AI companion memory (Pro): inject session history into chat prompt | P1 |
-| 3.8 | Advanced analytics (Pro): trends over weeks/months, estimation accuracy | P1 |
-| 3.9 | 30-day history enforcement for free tier | P1 |
-| 3.10 | Upgrade prompts at natural moments (report page, chat, dashboard) | P2 |
+| 3.1 | AI companion memory: inject session history into chat prompt | P1 |
+| 3.2 | Advanced analytics: trends over weeks/months, estimation accuracy | P1 |
+| 3.3 | PayPal donation button on dashboard + top bar | P0 (done) |
 
 **Verification criteria:**
-- [ ] User can upgrade to Pro via Stripe Checkout
-- [ ] Subscription status persists in DB and is checked across the app
-- [ ] Pro users see AI memory in chat ("Last time you worked on X...")
-- [ ] Pro users see advanced analytics on dashboard
-- [ ] Free users see 30-day limit with graceful messaging
+- [ ] AI chat references past sessions ("Last time you worked on X...")
+- [ ] Dashboard shows advanced analytics (trends, estimation accuracy)
+- [ ] Donation button links to paypal.me/Billionareh
 
 ### Phase 4: Growth & Distribution (Weeks 8-10)
 
-**Goal:** The app is discoverable, installable, and shareable.
+**Goal:** The app is discoverable and installable. Individual-use only — no social/sharing features.
 
 | # | Task | Priority |
 |---|------|----------|
 | 4.1 | PWA manifest + service worker | P0 |
 | 4.2 | Push notifications ("Your planned session starts in 5 min") | P1 |
-| 4.3 | Landing page redesign (marketing-focused, testimonials, demo) | P0 |
+| 4.3 | Landing page redesign (marketing-focused, demo) | P0 |
 | 4.4 | SEO: meta tags, OpenGraph images, structured data | P0 |
-| 4.5 | Social sharing: "I focused for 2 hours today on Dedicora" cards | P1 |
-| 4.6 | Referral system: "Invite a friend, get 1 month Pro free" | P2 |
-| 4.7 | Body-doubling MVP: share a session link, see partner's progress | P2 |
-| 4.8 | Google Calendar integration (Pro) | P2 |
-| 4.9 | Analytics: PostHog or Plausible for product metrics | P1 |
-| 4.10 | Error monitoring: Sentry | P1 |
+| 4.5 | Analytics: PostHog or Plausible for product metrics | P1 |
+| 4.6 | Error monitoring: Sentry | P1 |
 
 ---
 
@@ -751,7 +715,7 @@ Implementation: A client-side interval (every 60s) checks conditions and trigger
 | Styling | **Tailwind CSS v4** + shadcn/ui | Already in use |
 | Charts | **Recharts** | Already in use |
 | Animation | **Framer Motion** | Already in use |
-| Payments | **Stripe** | Industry standard |
+| Donations | **PayPal.me** | Simple external link, no integration needed |
 | Deployment | **Vercel** | Native Next.js, edge functions, analytics |
 | PWA | **next-pwa** or manual service worker | Installable + offline |
 | Analytics | **PostHog** (free tier) or **Plausible** | Privacy-friendly product analytics |
@@ -760,11 +724,6 @@ Implementation: A client-side interval (every 60s) checks conditions and trigger
 **New packages to install (Phase 1):**
 ```bash
 npm install @supabase/supabase-js @supabase/ssr
-```
-
-**New packages (Phase 3):**
-```bash
-npm install stripe
 ```
 
 **New packages (Phase 4):**
@@ -800,8 +759,7 @@ Once analytics are in place, these are the numbers that matter:
 | **D7 Retention** | % of new users who return within 7 days | > 30% |
 | **Session completion rate** | % of sessions that reach "completed" (not abandoned) | > 60% |
 | **Avg sessions/user/week** | Engagement depth | > 3 |
-| **Free → Pro conversion** | % of free users who upgrade | > 3% |
-| **Monthly churn** | % of Pro users who cancel per month | < 5% |
+| **Donation rate** | % of active users who donate | Tracking only |
 | **Time to first session** | Seconds from signup to starting first timer | < 120s |
 
 ---

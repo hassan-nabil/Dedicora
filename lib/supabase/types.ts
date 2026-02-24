@@ -14,10 +14,6 @@ export interface Database {
           id: string
           display_name: string | null
           avatar_url: string | null
-          subscription_tier: "free" | "pro"
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          subscription_expires_at: string | null
           onboarding_completed: boolean
           created_at: string
           updated_at: string
@@ -26,10 +22,6 @@ export interface Database {
           id: string
           display_name?: string | null
           avatar_url?: string | null
-          subscription_tier?: "free" | "pro"
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_expires_at?: string | null
           onboarding_completed?: boolean
           created_at?: string
           updated_at?: string
@@ -38,10 +30,6 @@ export interface Database {
           id?: string
           display_name?: string | null
           avatar_url?: string | null
-          subscription_tier?: "free" | "pro"
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_expires_at?: string | null
           onboarding_completed?: boolean
           created_at?: string
           updated_at?: string

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot, Coffee, SkipForward } from "lucide-react"
+import { Pause, Play, ArrowLeft, ArrowRight, CornerUpLeft, Bot, Coffee, SkipForward, X } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,7 @@ function TimerContent() {
   // Break state
   const [isOnBreak, setIsOnBreak] = React.useState(false)
   const [breakRemaining, setBreakRemaining] = React.useState(0)
+  const [showCongrats, setShowCongrats] = React.useState(true)
   const [breakSuggestion, setBreakSuggestion] = React.useState("")
   const pendingNextIndexRef = React.useRef<number | null>(null)
 
@@ -110,12 +111,33 @@ function TimerContent() {
     }
   }, [currentTaskIndex, taskList.length, currentTask])
 
-  // Stop everything when all tasks are done
+  // Stop everything when all tasks are done and mark session completed
   React.useEffect(() => {
     if (allTasksDone) {
       setIsRunning(false)
       setCountingForward(false)
+      setShowCongrats(true)
+
+      // Mark session as completed in DB
+      const sid = sessionId ?? sessionParam
+      if (sid) {
+        const totalActual = taskList.reduce((sum, t, i) => {
+          if (i === currentTaskIndex) return sum + actualSecondsRef.current
+          return sum + (t.actualSeconds ?? 0)
+        }, 0)
+
+        fetch(`/api/sessions/${sid}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "completed",
+            total_actual_seconds: totalActual,
+            completed_at: new Date().toISOString(),
+          }),
+        }).catch(() => {})
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allTasksDone])
 
   // Countdown timer
@@ -427,10 +449,17 @@ function TimerContent() {
             </div>
           </div>
         </main>
-      ) : allTasksDone ? (
+      ) : allTasksDone && showCongrats ? (
         /* Congratulations screen — shown only when ALL tasks are complete */
         <main className="mx-auto flex min-h-[80vh] w-full max-w-3xl flex-col items-center justify-center gap-8 text-center">
-          <div className="space-y-6 rounded-4xl border bg-card/80 p-6 shadow-(--shadow-strong) sm:p-12">
+          <div className="relative space-y-6 rounded-4xl border bg-card/80 p-6 shadow-(--shadow-strong) sm:p-12">
+            <button
+              onClick={() => setShowCongrats(false)}
+              className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
             <Stickman state="done" />
             <div className="space-y-3">
               <h1 className="text-2xl font-bold text-gradient sm:text-4xl">

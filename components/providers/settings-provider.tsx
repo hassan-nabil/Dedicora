@@ -80,12 +80,12 @@ export function SettingsProvider({
     setDbLoaded(true)
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { audio_enabled?: boolean; color_blind_mode?: string; theme_mode?: string; default_break_minutes?: number } | null) => {
+      .then((data: { audio_enabled?: boolean; color_blind_mode?: string; theme_mode?: string; preferred_session_duration?: number } | null) => {
         if (!data) return
         if (typeof data.audio_enabled === "boolean") setAudioEnabled(data.audio_enabled)
         if (data.color_blind_mode) setColorBlindMode(data.color_blind_mode as ColorBlindMode)
         if (data.theme_mode) setThemeMode(data.theme_mode as ThemeMode)
-        if (typeof data.default_break_minutes === "number") setBreakMinutes(data.default_break_minutes)
+        if (typeof data.preferred_session_duration === "number") setBreakMinutes(data.preferred_session_duration)
       })
       .catch(() => {})
   }, [user, dbLoaded])
@@ -114,7 +114,7 @@ export function SettingsProvider({
             audio_enabled: audioEnabled,
             color_blind_mode: colorBlindMode,
             theme_mode: themeMode,
-            default_break_minutes: breakMinutes,
+            preferred_session_duration: breakMinutes,
           }),
         }).catch(() => {})
       }, 1500)

@@ -8,7 +8,6 @@ type Profile = {
   id: string
   display_name: string | null
   avatar_url: string | null
-  subscription_tier: "free" | "pro"
   onboarding_completed: boolean
 }
 
@@ -40,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         supabase
           .from("profiles")
-          .select("id, display_name, avatar_url, subscription_tier, onboarding_completed")
+          .select("id, display_name, avatar_url, onboarding_completed")
           .eq("id", user.id)
           .single()
           .then(({ data }) => {
@@ -62,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         supabase
           .from("profiles")
-          .select("id, display_name, avatar_url, subscription_tier, onboarding_completed")
+          .select("id, display_name, avatar_url, onboarding_completed")
           .eq("id", currentUser.id)
           .single()
           .then(({ data }) => {

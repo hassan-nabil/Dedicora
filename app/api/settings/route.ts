@@ -38,7 +38,6 @@ export async function PUT(request: Request) {
     "theme_mode",
     "preferred_session_duration",
     "daily_goal_minutes",
-    "default_break_minutes",
   ] as const
 
   const updates: Record<string, unknown> = {}

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Repeat2, Trash2, Pencil, Check, Bot } from "lucide-react"
+import { Trash2, Pencil, Check, Bot } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
@@ -56,16 +56,6 @@ function AssignContent() {
       setSessionId(sessionParam)
     }
   }, [sessionParam, sessionId, setSessionId])
-
-  // Load existing session if resuming
-  React.useEffect(() => {
-    if (sessionParam && !loaded) {
-      setLoaded(true)
-      loadSession(sessionParam).then(() => {
-        // Session loaded, tasks will be set via flow provider
-      })
-    }
-  }, [sessionParam, loaded, loadSession])
 
   const fetchTasks = React.useCallback(async () => {
     setLoading(true)
@@ -146,13 +136,31 @@ function AssignContent() {
     }
   }, [mainTask, mode])
 
+  // Load existing session if resuming, then fetch AI tasks if none exist
+  React.useEffect(() => {
+    if (sessionParam && !loaded) {
+      setLoaded(true)
+      loadSession(sessionParam).then(() => {
+      })
+    }
+  }, [sessionParam, loaded, loadSession])
+
+  // Trigger AI task generation
   React.useEffect(() => {
     setMode(mode)
-    if (!sessionParam) {
-      // Only fetch if not loading from an existing session
+    if (!loaded && !sessionParam) {
+      // No session param — fully local mode, fetch immediately
       void fetchTasks()
     }
-  }, [mode, setMode, fetchTasks, sessionParam])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Once session is loaded, check if we need to generate tasks
+  React.useEffect(() => {
+    if (loaded && tasks.length === 0 && !loading && mainTask) {
+      void fetchTasks()
+    }
+  }, [loaded, tasks.length, loading, mainTask, fetchTasks])
 
   // Auto-save tasks to DB (debounced)
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -272,10 +280,6 @@ function AssignContent() {
     }
 
     router.push(sid ? `/timer?session=${sid}` : "/timer")
-  }
-
-  const handleRedo = () => {
-    void fetchTasks()
   }
 
   return (
@@ -427,16 +431,6 @@ function AssignContent() {
         </div>
 
         <div className="sticky bottom-6 flex flex-wrap items-center justify-center gap-4">
-          {mode === "breakdown" && (
-            <Button
-              variant="outline"
-              className="rounded-full px-6"
-              onClick={handleRedo}
-              disabled={loading}
-            >
-              <Repeat2 className="mr-2 h-4 w-4" /> Redo
-            </Button>
-          )}
           <Button
             className="rounded-full px-8"
             onClick={handleStart}

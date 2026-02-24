@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Zap, Clock, Flame, Target, Pause, Play, Rocket } from "lucide-react"
+import { Plus, Clock, Flame, Target, Pause, Play, Rocket, Heart } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card"
 import { ReportChart, type ChartDatum } from "@/components/report-chart"
 import { OnboardingModal } from "@/components/onboarding-modal"
 import { useAuth } from "@/components/providers/auth-provider"
-import { useFlow } from "@/components/providers/flow-provider"
 
 type StatsData = {
   totalSessions: number
@@ -35,7 +34,6 @@ type SessionSummary = {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
-  const { setMainTask, setMode, setSessionId } = useFlow()
 
   const [stats, setStats] = React.useState<StatsData | null>(null)
   const [sessions, setSessions] = React.useState<SessionSummary[]>([])
@@ -50,9 +48,10 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, router])
 
-  // Fetch stats and sessions
-  React.useEffect(() => {
+  // Fetch stats and sessions — runs on every mount/focus to stay fresh
+  const fetchDashboardData = React.useCallback(() => {
     if (!user) return
+    setLoadingData(true)
 
     Promise.all([
       fetch("/api/stats").then((r) => (r.ok ? r.json() : null)),
@@ -63,45 +62,23 @@ export default function DashboardPage() {
         if (sessionsData?.sessions) {
           setSessions(sessionsData.sessions)
           const active = sessionsData.sessions.find((s: SessionSummary) => s.status === "active")
-          if (active) setActiveSession(active)
+          setActiveSession(active ?? null)
           setPausedSessions(sessionsData.sessions.filter((s: SessionSummary) => s.status === "paused"))
+        } else {
+          setActiveSession(null)
+          setPausedSessions([])
         }
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
   }, [user])
 
+  React.useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
+
   const handleNewSession = () => {
     router.push("/task")
-  }
-
-  const handleQuickFocus = async () => {
-    try {
-      const res = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Quick Focus", mode: "single" }),
-      })
-      if (res.ok) {
-        const session = await res.json()
-        setMainTask("Quick Focus")
-        setMode("single")
-        setSessionId(session.id)
-
-        // Create a single 25-minute task
-        await fetch(`/api/sessions/${session.id}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tasks: [{ title: "Quick Focus", description: "25-minute focus session", estimated_seconds: 1500 }],
-          }),
-        })
-
-        router.push(`/timer?session=${session.id}`)
-      }
-    } catch {
-      router.push("/task")
-    }
   }
 
   const handleResumeSession = (session: SessionSummary) => {
@@ -217,14 +194,16 @@ export default function DashboardPage() {
 
         {/* Quick actions */}
         <div className="flex flex-wrap gap-3">
-          <Button className="rounded-full gap-2 px-6" onClick={handleQuickFocus}>
-            <Zap className="h-4 w-4" />
-            Quick Focus (25 min)
-          </Button>
-          <Button variant="outline" className="rounded-full gap-2 px-6" onClick={handleNewSession}>
+          <Button className="rounded-full gap-2 px-6" onClick={handleNewSession}>
             <Plus className="h-4 w-4" />
             New Session
           </Button>
+          <a href="https://paypal.me/Billionareh" target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" className="rounded-full gap-2 px-6 text-pink-500 hover:text-pink-600 border-pink-500/30 hover:border-pink-500/50">
+              <Heart className="h-4 w-4" />
+              Support Dedicora
+            </Button>
+          </a>
         </div>
 
         {/* Stats + Chart */}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { LayoutPanelLeft, Settings, LayoutDashboard, LogOut } from "lucide-react"
+import { LayoutPanelLeft, Settings, LayoutDashboard, LogOut, Heart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -36,6 +36,20 @@ export function TopBar({ showSidebar = false }: { showSidebar?: boolean }) {
           <LayoutPanelLeft className="h-5 w-5" />
         </Button>
       )}
+      <a
+        href="https://paypal.me/Billionareh"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Support Dedicora"
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full border border-border bg-background/70 shadow-sm text-pink-500 hover:text-pink-600"
+        >
+          <Heart className="h-4 w-4" />
+        </Button>
+      </a>
       <Button
         variant="ghost"
         size="icon"
