@@ -1,5 +1,5 @@
 const audioMap: Record<string, string> = {
-  "/": "/audio/welcome.mp3",
+  "/dashboard": "/audio/welcome.mp3",
   "/task": "/audio/task.mp3",
   "/assign": "/audio/assign.mp3",
   "/timer": "/audio/timer.mp3",
