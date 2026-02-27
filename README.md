@@ -1,6 +1,6 @@
 # Dedicora
 
-Dedicora is a productivity web app for hackathons that guides users through a focused flow: Welcome, Enter Task, Assign Task and Timer (3A/3B), Timer, and Report. It includes accessibility features, settings, per-page audio playback, task breakdown via Gemini, and a performance report with chart summary and bullet insights.
+Dedicora is a productivity web app that guides users through a focused flow: Welcome, Enter Task, Assign Task and Timer (3A/3B), Timer, and Report. It includes accessibility features, settings, per-page audio playback, task breakdown via Gemini, and a performance report with chart summary and bullet insights.
 
 ## Features
 
@@ -8,7 +8,7 @@ Dedicora is a productivity web app for hackathons that guides users through a fo
 - Settings modal with audio toggle, color-blind modes, and light/dark theme
 - Only This and Break It Down flows powered by Gemini
 - Timer with task navigation, sidebar progress, and stickman state
-- On-demand productivity report with chart and insights
+- On-demand productivity report aggregating ALL completed sessions with chart and insights
 - Local JSON fallbacks when Gemini is unavailable
 
 ## Getting Started
@@ -55,6 +55,9 @@ Audio plays per page when the speaker toggle is on and restarts on each page.
 
 ## Notes
 
-- The report only generates when "Check my productivity" is clicked
+- The report generates when "Check my productivity" is clicked and covers all completed sessions
 - Bar chart is the default chart style for clarity
 - Local fallbacks are in data/taskFallback.json and data/reportFallback.json
+- "Time Spent" on the dashboard tracks cumulative time across all sessions
+- Deleting a session soft-deletes it — time data is preserved in stats
+- "My Sessions" on the dashboard shows all sessions (not just recent)

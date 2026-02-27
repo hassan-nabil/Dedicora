@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   mode TEXT NOT NULL DEFAULT 'single' CHECK (mode IN ('single', 'breakdown')),
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'abandoned')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'abandoned', 'deleted')),
   current_step TEXT NOT NULL DEFAULT 'task' CHECK (current_step IN ('task', 'assign', 'timer', 'report')),
   current_task_index INTEGER NOT NULL DEFAULT 0,
   total_estimated_seconds INTEGER NOT NULL DEFAULT 0,
@@ -209,6 +209,20 @@ CREATE TRIGGER user_settings_updated_at
 -- =====================================================
 -- 9. DAILY FOCUS STATS VIEW
 -- =====================================================
+-- =====================================================
+-- 10. ADD 'deleted' STATUS TO SESSIONS (for soft-delete)
+-- Run this if sessions table already exists with old constraint
+-- =====================================================
+DO $$
+BEGIN
+  ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+  ALTER TABLE sessions ADD CONSTRAINT sessions_status_check
+    CHECK (status IN ('active', 'paused', 'completed', 'abandoned', 'deleted'));
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END;
+$$;
+
 CREATE OR REPLACE VIEW daily_focus_stats AS
 SELECT 
   s.user_id,

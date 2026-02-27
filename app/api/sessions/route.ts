@@ -76,6 +76,7 @@ export async function GET(request: Request) {
       .from("sessions")
       .select("*", { count: "exact" })
       .eq("user_id", user.id)
+      .neq("status", "deleted")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 

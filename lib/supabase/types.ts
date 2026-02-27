@@ -42,7 +42,7 @@ export interface Database {
           user_id: string
           title: string
           mode: "single" | "breakdown"
-          status: "active" | "paused" | "completed" | "abandoned"
+          status: "active" | "paused" | "completed" | "abandoned" | "deleted"
           current_step: "task" | "assign" | "timer" | "report"
           current_task_index: number
           total_estimated_seconds: number
@@ -60,7 +60,7 @@ export interface Database {
           user_id: string
           title: string
           mode?: "single" | "breakdown"
-          status?: "active" | "paused" | "completed" | "abandoned"
+          status?: "active" | "paused" | "completed" | "abandoned" | "deleted"
           current_step?: "task" | "assign" | "timer" | "report"
           current_task_index?: number
           total_estimated_seconds?: number
@@ -78,7 +78,7 @@ export interface Database {
           user_id?: string
           title?: string
           mode?: "single" | "breakdown"
-          status?: "active" | "paused" | "completed" | "abandoned"
+          status?: "active" | "paused" | "completed" | "abandoned" | "deleted"
           current_step?: "task" | "assign" | "timer" | "report"
           current_task_index?: number
           total_estimated_seconds?: number

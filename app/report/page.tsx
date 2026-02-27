@@ -24,6 +24,23 @@ type ReportResponse = {
   chart: ChartDatum[]
 }
 
+type AggregateTask = {
+  title: string
+  estimated_seconds: number
+  actual_seconds: number
+  overtime_seconds: number
+  status: string
+  session_id: string
+}
+
+type AggregateSession = {
+  id: string
+  title: string
+  total_actual_seconds: number
+  total_estimated_seconds: number
+  completed_at: string | null
+}
+
 function ReportContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -33,6 +50,9 @@ function ReportContent() {
   const [loading, setLoading] = React.useState(false)
   const [report, setReport] = React.useState<ReportResponse | null>(null)
   const [loaded, setLoaded] = React.useState(false)
+  const [allTasks, setAllTasks] = React.useState<AggregateTask[]>([])
+  const [allSessions, setAllSessions] = React.useState<AggregateSession[]>([])
+  const [aggregateLoaded, setAggregateLoaded] = React.useState(false)
 
   // Load session from DB if URL has session param
   React.useEffect(() => {
@@ -45,6 +65,20 @@ function ReportContent() {
     }
   }, [sessionParam, loaded, sessionId, setSessionId, loadSession])
 
+  // Fetch aggregate data from all completed sessions
+  React.useEffect(() => {
+    if (aggregateLoaded) return
+    setAggregateLoaded(true)
+    fetch("/api/report/aggregate")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { sessions?: AggregateSession[]; tasks?: AggregateTask[] } | null) => {
+        if (data?.sessions) setAllSessions(data.sessions)
+        if (data?.tasks) setAllTasks(data.tasks)
+      })
+      .catch(() => {})
+  }, [aggregateLoaded])
+
+  // Current session tasks (for display alongside aggregate)
   const enrichedTasks = React.useMemo(() => {
     return taskList.map((t) => ({
       title: t.title,
@@ -55,13 +89,31 @@ function ReportContent() {
     }))
   }, [taskList])
 
+  // Build aggregate tasks for report generation (all sessions)
+  const aggregateReportTasks = React.useMemo(() => {
+    if (allTasks.length > 0) {
+      return allTasks.map((t) => ({
+        title: t.title,
+        estimated_seconds: t.estimated_seconds,
+        actual_seconds: t.actual_seconds,
+        overtime_seconds: t.overtime_seconds,
+        done: t.status === "completed",
+      }))
+    }
+    return enrichedTasks
+  }, [allTasks, enrichedTasks])
+
   const generateReport = React.useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch("/api/gemini/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tasks: enrichedTasks }),
+        body: JSON.stringify({
+          tasks: aggregateReportTasks,
+          sessionCount: allSessions.length || 1,
+          isAggregate: allSessions.length > 0,
+        }),
       })
       const data = (await response.json()) as ReportResponse
       setReport(data)
@@ -81,7 +133,7 @@ function ReportContent() {
     } finally {
       setLoading(false)
     }
-  }, [enrichedTasks, sessionId, sessionParam])
+  }, [aggregateReportTasks, allSessions.length, sessionId, sessionParam])
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -94,17 +146,17 @@ function ReportContent() {
 
   // Comparison chart data — estimated vs actual per task (minutes)
   const comparisonData: ComparisonDatum[] = React.useMemo(() => {
-    return enrichedTasks.map((t) => ({
-      name: t.title.length > 14 ? t.title.slice(0, 12) + "…" : t.title,
+    return aggregateReportTasks.map((t) => ({
+      name: t.title.length > 14 ? t.title.slice(0, 12) + "\u2026" : t.title,
       estimated: +(t.estimated_seconds / 60).toFixed(1),
       actual: +(t.actual_seconds / 60).toFixed(1),
     }))
-  }, [enrichedTasks])
+  }, [aggregateReportTasks])
 
-  // Summary stats
-  const totalEstimated = enrichedTasks.reduce((s, t) => s + t.estimated_seconds, 0)
-  const totalActual = enrichedTasks.reduce((s, t) => s + t.actual_seconds, 0)
-  const completedCount = enrichedTasks.filter((t) => t.done).length
+  // Summary stats (aggregate across all sessions)
+  const totalEstimated = aggregateReportTasks.reduce((s, t) => s + t.estimated_seconds, 0)
+  const totalActual = aggregateReportTasks.reduce((s, t) => s + t.actual_seconds, 0)
+  const completedCount = aggregateReportTasks.filter((t) => t.done).length
 
   return (
     <div className="relative min-h-screen bg-hero px-6 py-10">
@@ -118,7 +170,8 @@ function ReportContent() {
             Your productivity snapshot
           </h1>
           <p className="text-sm text-muted-foreground">
-            {completedCount}/{enrichedTasks.length} tasks completed
+            {completedCount}/{aggregateReportTasks.length} tasks completed
+            {allSessions.length > 0 && <> across {allSessions.length} session{allSessions.length !== 1 ? "s" : ""}</>}
             {totalActual > 0 && (
               <> &middot; {formatTime(totalActual)} focused (est. {formatTime(totalEstimated)})</>
             )}

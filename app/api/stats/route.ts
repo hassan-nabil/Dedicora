@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Fetch all completed sessions
+    // Fetch all completed sessions (for streaks & completion rate)
     const { data: completedSessions } = await supabase
       .from("sessions")
       .select("id, total_actual_seconds, completed_at, created_at")
@@ -19,7 +19,16 @@ export async function GET() {
       .eq("status", "completed")
       .order("completed_at", { ascending: false })
 
-    // Fetch all sessions count
+    // Fetch ALL sessions with time data (for total time spent)
+    // Includes completed, active, paused, and deleted — excludes abandoned
+    const { data: allTimeSessions } = await supabase
+      .from("sessions")
+      .select("id, total_actual_seconds, completed_at, created_at, status")
+      .eq("user_id", user.id)
+      .neq("status", "abandoned")
+      .order("created_at", { ascending: false })
+
+    // Fetch all sessions count (visible sessions only)
     const { count: totalSessionsCount } = await supabase
       .from("sessions")
       .select("id", { count: "exact", head: true })
@@ -27,14 +36,15 @@ export async function GET() {
       .in("status", ["completed", "active", "paused"])
 
     const sessions = completedSessions ?? []
+    const timeSessions = allTimeSessions ?? []
     const totalSessions = totalSessionsCount ?? 0
 
-    // Total focus time
-    const totalFocusSeconds = sessions.reduce(
+    // Total time spent (all non-abandoned sessions, persists even after deletion)
+    const totalFocusSeconds = timeSessions.reduce(
       (sum, s) => sum + (s.total_actual_seconds ?? 0),
       0
     )
-    const totalFocusHours = Math.round((totalFocusSeconds / 3600) * 10) / 10
+    const totalFocusHours = Math.round((totalFocusSeconds / 3600) * 100) / 100
 
     // Completion rate
     const { count: allSessionsCount } = await supabase
@@ -110,50 +120,50 @@ export async function GET() {
       }
     }
 
-    // This week's hours
+    // This week's hours (use all time sessions for accurate totals)
     const startOfWeek = new Date(today)
     startOfWeek.setDate(today.getDate() - today.getDay()) // Sunday
     startOfWeek.setHours(0, 0, 0, 0)
 
-    const thisWeekSeconds = sessions
-      .filter((s) => s.completed_at && new Date(s.completed_at) >= startOfWeek)
+    const thisWeekSeconds = timeSessions
+      .filter((s) => {
+        const d = s.completed_at ? new Date(s.completed_at) : new Date(s.created_at)
+        return d >= startOfWeek
+      })
       .reduce((sum, s) => sum + (s.total_actual_seconds ?? 0), 0)
 
-    const thisWeekHours = Math.round((thisWeekSeconds / 3600) * 10) / 10
+    const thisWeekHours = Math.round((thisWeekSeconds / 3600) * 100) / 100
 
     // Last week's hours
     const startOfLastWeek = new Date(startOfWeek)
     startOfLastWeek.setDate(startOfLastWeek.getDate() - 7)
 
-    const lastWeekSeconds = sessions
-      .filter(
-        (s) =>
-          s.completed_at &&
-          new Date(s.completed_at) >= startOfLastWeek &&
-          new Date(s.completed_at) < startOfWeek
-      )
+    const lastWeekSeconds = timeSessions
+      .filter((s) => {
+        const d = s.completed_at ? new Date(s.completed_at) : new Date(s.created_at)
+        return d >= startOfLastWeek && d < startOfWeek
+      })
       .reduce((sum, s) => sum + (s.total_actual_seconds ?? 0), 0)
 
-    const lastWeekHours = Math.round((lastWeekSeconds / 3600) * 10) / 10
+    const lastWeekHours = Math.round((lastWeekSeconds / 3600) * 100) / 100
 
-    // Daily stats for the current week (for chart)
+    // Daily stats for the current week (for chart) — use all time sessions
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     const dailyStats = dayNames.map((name, dayIndex) => {
       const dayDate = new Date(startOfWeek)
       dayDate.setDate(startOfWeek.getDate() + dayIndex)
       const dayStr = dayDate.toISOString().split("T")[0]
 
-      const daySeconds = sessions
+      const daySeconds = timeSessions
         .filter((s) => {
-          if (!s.completed_at) return false
-          const d = new Date(s.completed_at)
+          const d = s.completed_at ? new Date(s.completed_at) : new Date(s.created_at)
           return d.toISOString().split("T")[0] === dayStr
         })
         .reduce((sum, s) => sum + (s.total_actual_seconds ?? 0), 0)
 
       return {
         name,
-        value: Math.round((daySeconds / 3600) * 10) / 10,
+        value: Math.round((daySeconds / 3600) * 100) / 100,
       }
     })
 

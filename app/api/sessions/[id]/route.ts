@@ -100,7 +100,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/sessions/[id] — Delete session
+// DELETE /api/sessions/[id] — Soft-delete session (preserves time data)
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params
@@ -113,7 +113,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     const { error } = await supabase
       .from("sessions")
-      .delete()
+      .update({ status: "deleted" })
       .eq("id", id)
       .eq("user_id", user.id)
 

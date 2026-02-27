@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Clock, Flame, Target, Pause, Play, Rocket, Heart } from "lucide-react"
+import { Plus, Clock, Flame, Target, Pause, Play, Rocket, Heart, X } from "lucide-react"
 
 import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const [sessions, setSessions] = React.useState<SessionSummary[]>([])
   const [activeSession, setActiveSession] = React.useState<SessionSummary | null>(null)
   const [pausedSessions, setPausedSessions] = React.useState<SessionSummary[]>([])
+  const [deletingSessionId, setDeletingSessionId] = React.useState<string | null>(null)
   const [loadingData, setLoadingData] = React.useState(true)
 
   // Redirect to login if not authenticated
@@ -55,7 +56,7 @@ export default function DashboardPage() {
 
     Promise.all([
       fetch("/api/stats").then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/sessions?limit=5").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/sessions?limit=100").then((r) => (r.ok ? r.json() : null)),
     ])
       .then(([statsData, sessionsData]: [StatsData | null, { sessions?: SessionSummary[] } | null]) => {
         if (statsData) setStats(statsData)
@@ -134,6 +135,39 @@ export default function DashboardPage() {
     const h = Math.floor(seconds / 3600)
     const m = Math.floor((seconds % 3600) / 60)
     return h > 0 ? `${h}h ${m}m` : `${m}m`
+  }
+
+  const handleDeleteSession = (sessionId: string) => {
+    if (confirm("Are you sure you want to delete this session? This action cannot be undone.")) {
+      setDeletingSessionId(sessionId)
+      // Optimistic UI removal
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      
+      fetch(`/api/sessions/${sessionId}`, {
+        method: "DELETE",
+      })
+        .then((r) => {
+          if (!r.ok) {
+            // If API fails, refresh the data
+            fetchDashboardData()
+          }
+        })
+        .catch(() => {
+          // If network fails, refresh the data
+          fetchDashboardData()
+        })
+        .finally(() => {
+          setDeletingSessionId(null)
+        })
+    }
+  }
+
+  const handleSessionClick = (session: SessionSummary) => {
+    if (session.status === "completed") {
+      // No longer navigate to report for completed sessions
+      return
+    }
+    handleResumeSession(session)
   }
 
   if (authLoading || (!user && !authLoading)) {
@@ -225,7 +259,7 @@ export default function DashboardPage() {
               <Card className="space-y-1 p-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span className="text-xs">Total Focus</span>
+                  <span className="text-xs">Time Spent</span>
                 </div>
                 <p className="text-xl font-bold">{stats.totalFocusHours.toFixed(1)}h</p>
               </Card>
@@ -257,19 +291,17 @@ export default function DashboardPage() {
         {/* Recent sessions */}
         {sessions.length > 0 ? (
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold">Recent Sessions</h2>
+            <h2 className="text-lg font-semibold">My Sessions</h2>
             <div className="space-y-2">
               {sessions.map((s) => (
                 <Card
                   key={s.id}
-                  className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-accent/50"
-                  onClick={() =>
-                    s.status === "completed"
-                      ? router.push(`/report/${s.id}`)
-                      : handleResumeSession(s)
-                  }
+                  className={`flex items-center justify-between p-4 transition-colors ${
+                    s.status !== "completed" ? "cursor-pointer hover:bg-accent/50" : ""
+                  } ${deletingSessionId === s.id ? "opacity-50" : ""}`}
+                  onClick={() => handleSessionClick(s)}
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{s.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(s.created_at).toLocaleDateString()} &middot;{" "}
@@ -277,21 +309,33 @@ export default function DashboardPage() {
                       <span className="capitalize">{s.status}</span>
                     </p>
                   </div>
-                  {s.status === "active" && (
-                    <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
-                      Active
-                    </span>
-                  )}
-                  {s.status === "completed" && (
-                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
-                      Completed
-                    </span>
-                  )}
-                  {s.status === "paused" && (
-                    <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-600">
-                      Paused
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {s.status === "active" && (
+                      <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                        Active
+                      </span>
+                    )}
+                    {s.status === "completed" && (
+                      <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+                        Completed
+                      </span>
+                    )}
+                    {s.status === "paused" && (
+                      <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-600">
+                        Paused
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteSession(s.id)
+                      }}
+                      className="rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      disabled={deletingSessionId === s.id}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </Card>
               ))}
             </div>
