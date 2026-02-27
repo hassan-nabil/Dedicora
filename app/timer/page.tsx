@@ -11,6 +11,7 @@ import { TaskSidebar } from "@/components/task-sidebar"
 import { NotesPanel } from "@/components/notes-panel"
 import { ChatPanel } from "@/components/chat-panel"
 import { useFlow } from "@/components/providers/flow-provider"
+import { useAuth } from "@/components/providers/auth-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { formatTime, toSeconds } from "@/lib/time"
 
@@ -34,6 +35,7 @@ function TimerContent() {
     taskList, currentTaskIndex, setCurrentTaskIndex, markTaskDone,
     sessionId, setSessionId, loadSession,
   } = useFlow()
+  const { isGuest } = useAuth()
   const { breakMinutes } = useSettings()
 
   const [isRunning, setIsRunning] = React.useState(true)
@@ -118,9 +120,9 @@ function TimerContent() {
       setCountingForward(false)
       setShowCongrats(true)
 
-      // Mark session as completed in DB
+      // Mark session as completed in DB — skip for guests
       const sid = sessionId ?? sessionParam
-      if (sid) {
+      if (sid && !isGuest) {
         const totalActual = taskList.reduce((sum, t, i) => {
           if (i === currentTaskIndex) return sum + actualSecondsRef.current
           return sum + (t.actualSeconds ?? 0)
@@ -172,10 +174,10 @@ function TimerContent() {
     return () => window.clearInterval(timer)
   }, [isRunning, countingForward, currentTask, allTasksDone])
 
-  // Persist timer state to DB every 5 seconds
+  // Persist timer state to DB every 5 seconds — skip for guests
   React.useEffect(() => {
     const sid = sessionId ?? sessionParam
-    if (!sid || !isRunning) return
+    if (!sid || !isRunning || isGuest) return
 
     const persistTimer = window.setInterval(async () => {
       // Save current task progress
@@ -221,7 +223,7 @@ function TimerContent() {
     }, 5000)
 
     return () => window.clearInterval(persistTimer)
-  }, [sessionId, sessionParam, isRunning, currentTask, currentTaskIndex, overtime, taskList])
+  }, [sessionId, sessionParam, isRunning, currentTask, currentTaskIndex, overtime, taskList, isGuest])
 
   // Start a break before advancing to the next task
   const startBreak = React.useCallback((nextIndex: number) => {
@@ -292,8 +294,8 @@ function TimerContent() {
       isFinished: true,
     })
 
-    // Persist task completion to DB
-    if (currentTask?.dbId) {
+    // Persist task completion to DB — skip for guests
+    if (currentTask?.dbId && !isGuest) {
       try {
         await fetch(`/api/tasks/${currentTask.dbId}`, {
           method: "PATCH",
@@ -323,6 +325,12 @@ function TimerContent() {
   }
 
   const handleReport = async () => {
+    // Guest mode: redirect to sign-up prompt
+    if (isGuest) {
+      router.push("/login?from=guest")
+      return
+    }
+
     const sid = sessionId ?? sessionParam
 
     // Mark session as completed
@@ -473,16 +481,33 @@ function TimerContent() {
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-              <Button className="rounded-full px-8" onClick={handleReport}>
-                Check my productivity
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full px-6"
-                onClick={() => router.push("/task")}
-              >
-                Start new session
-              </Button>
+              {isGuest ? (
+                <>
+                  <Button className="rounded-full px-8" onClick={() => router.push("/login?from=guest")}>
+                    Sign up for full features
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-full px-6"
+                    onClick={() => router.push("/task")}
+                  >
+                    Try another session
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button className="rounded-full px-8" onClick={handleReport}>
+                    Check my productivity
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-full px-6"
+                    onClick={() => router.push("/task")}
+                  >
+                    Start new session
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </main>
@@ -557,8 +582,8 @@ function TimerContent() {
           </div>
 
           <div className="mt-6">
-            <Button className="rounded-full px-8" onClick={handleReport}>
-              Check my productivity
+            <Button className="rounded-full px-8" onClick={isGuest ? () => router.push("/login?from=guest") : handleReport}>
+              {isGuest ? "Sign up for full features" : "Check my productivity"}
             </Button>
           </div>
         </main>

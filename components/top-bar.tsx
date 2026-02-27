@@ -10,10 +10,19 @@ import { useAuth } from "@/components/providers/auth-provider"
 export function TopBar({ showSidebar = false }: { showSidebar?: boolean }) {
   const router = useRouter()
   const { setSettingsOpen, setSidebarOpen } = useSettings()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, isGuest } = useAuth()
 
   return (
     <div className="absolute right-4 top-4 flex flex-wrap items-center justify-end gap-1.5 sm:right-6 sm:top-6 sm:gap-2">
+      {isGuest && !user && (
+        <Button
+          variant="outline"
+          className="rounded-full px-4 text-xs border-brand/40 text-brand hover:bg-brand/10"
+          onClick={() => router.push("/login?from=guest")}
+        >
+          Sign up
+        </Button>
+      )}
       {user && (
         <Button
           variant="ghost"

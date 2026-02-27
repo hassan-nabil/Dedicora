@@ -33,7 +33,7 @@ type SessionSummary = {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, isGuest } = useAuth()
 
   const [stats, setStats] = React.useState<StatsData | null>(null)
   const [sessions, setSessions] = React.useState<SessionSummary[]>([])
@@ -42,12 +42,12 @@ export default function DashboardPage() {
   const [deletingSessionId, setDeletingSessionId] = React.useState<string | null>(null)
   const [loadingData, setLoadingData] = React.useState(true)
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated or if guest
   React.useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login")
+      router.push(isGuest ? "/login?from=guest" : "/login")
     }
-  }, [authLoading, user, router])
+  }, [authLoading, user, router, isGuest])
 
   // Fetch stats and sessions — runs on every mount/focus to stay fresh
   const fetchDashboardData = React.useCallback(() => {
