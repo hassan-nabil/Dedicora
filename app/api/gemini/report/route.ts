@@ -22,7 +22,7 @@ function safeJsonParse(text: string) {
 
 export async function POST(request: Request) {
   try {
-    const { tasks } = (await request.json()) as {
+    const { tasks, sessionCount, isAggregate } = (await request.json()) as {
       tasks?: Array<{
         title: string
         estimated_seconds?: number
@@ -31,6 +31,8 @@ export async function POST(request: Request) {
         done: boolean
         duration?: { hours: number; minutes: number; seconds: number }
       }>
+      sessionCount?: number
+      isAggregate?: boolean
     }
 
     if (!tasks || tasks.length === 0) {
@@ -53,6 +55,11 @@ export async function POST(request: Request) {
     const totalEstimated = tasks.reduce((s, t) => s + (t.estimated_seconds ?? 0), 0)
     const totalActual = tasks.reduce((s, t) => s + (t.actual_seconds ?? 0), 0)
 
+    const scopeContext = isAggregate && sessionCount && sessionCount > 1
+      ? `This report covers ALL ${sessionCount} completed sessions by this user (not just one session).
+Analyze overall productivity patterns, trends, and habits across all sessions.`
+      : `This report covers a single focus session.`
+
     const prompt = `You are generating a productivity report for Dedicora, an AI focus partner app.
 Return JSON only with this shape:
 {
@@ -61,6 +68,10 @@ Return JSON only with this shape:
   "insights": string[],
   "chart": [{ "name": string, "value": number }]
 }
+
+${scopeContext}
+
+Total sessions: ${sessionCount ?? 1}
 Total tasks: ${totalTasks}
 Completed tasks: ${completedTasks}
 Total estimated time: ${totalEstimated}s
@@ -71,6 +82,7 @@ ${taskSummaries}
 
 Use completion rates and actual vs estimated time to create actionable insights.
 Focus on patterns: was the user over/under-estimating? Did they stay focused?
+${isAggregate ? "Identify trends across sessions — improving estimation accuracy, consistency, or areas needing attention." : ""}
 Create a bar-chart friendly data series in chart (3-6 items) comparing estimated vs actual per task (in minutes).
 Keep the tone encouraging and supportive.`
 

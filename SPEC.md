@@ -163,7 +163,7 @@ CREATE TABLE sessions (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,                          -- main task description
   mode TEXT NOT NULL DEFAULT 'single' CHECK (mode IN ('single', 'breakdown')),
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'abandoned')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'abandoned', 'deleted')),
   
   -- Flow tracking: which step the user is on
   current_step TEXT NOT NULL DEFAULT 'task' CHECK (current_step IN ('task', 'assign', 'timer', 'report')),
@@ -362,7 +362,7 @@ Authentication is handled client-side by `@supabase/ssr` — the Supabase client
 | GET | `/api/sessions` | List user's sessions (paginated). Query: `?status=active&limit=20&offset=0`. Returns `{ sessions, total }`. |
 | GET | `/api/sessions/[id]` | Get session with all tasks, notes, and chat messages. |
 | PATCH | `/api/sessions/[id]` | Update session fields (status, current_step, current_task_index, report_data, times). |
-| DELETE | `/api/sessions/[id]` | Soft-delete or hard-delete a session. |
+| DELETE | `/api/sessions/[id]` | Soft-delete a session (sets status to `deleted`). Time data is preserved for stats. |
 
 ### 6.3 Tasks
 
@@ -382,6 +382,11 @@ Authentication is handled client-side by `@supabase/ssr` — the Supabase client
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/stats` | Returns: `{ totalSessions, totalFocusHours, currentStreak, longestStreak, thisWeekHours, lastWeekHours, completionRate, dailyStats[] }` |
+| GET | `/api/report/aggregate` | Returns all completed sessions and their tasks for aggregate report generation. |
+
+**Stats logic:**
+- **Time Spent** and **This Week** hours include ALL non-abandoned sessions (active, paused, completed, and soft-deleted) so deleting tasks/sessions never reduces cumulative time.
+- **Completion rate** and **streaks** only count `completed` sessions.
 
 **Streak logic:** A streak is the number of consecutive calendar days where the user completed at least one session. "Today" counts if a session was completed today. If the user hasn't completed a session today but did yesterday, the streak is still alive (not broken until end of today).
 
@@ -458,11 +463,11 @@ sits with you while you work, and celebrates when you finish.
 │  │  Total: 12.5 hours · Avg: 1.8 hrs/day        │  │
 │  └───────────────────────────────────────────────┘  │
 │                                                     │
-│  ┌─ Recent Sessions ────────────────────────────┐   │
+│  ┌─ My Sessions ─────────────────────────────────┐  │
 │  │  ✅ "Prepare presentation"  · 1h 23m · Today │   │
 │  │  ✅ "Code review PR #42"   · 45m · Yesterday │   │
 │  │  ❌ "Tax paperwork"        · 12m · Abandoned │   │
-│  │  [View all →]                                │   │
+│  │  (all sessions shown)                        │   │
 │  └──────────────────────────────────────────────┘   │
 │                                                     │
 └─────────────────────────────────────────────────────┘
@@ -472,8 +477,10 @@ sits with you while you work, and celebrates when you finish.
 - "Resume Session" appears only if there's an active/paused session (max 1 active at a time)
 - "Quick Focus" creates a session with title "Quick Focus" and a single 25-min task, then navigates directly to `/timer`
 - Weekly chart reuses the existing `report-chart.tsx` Recharts component
-- Recent sessions show the last 5, with status icon, title, total time, and relative date
+- "My Sessions" shows all user sessions (up to 100), with status icon, title, total time, and relative date
 - Clicking a completed session goes to `/report/[sessionId]`
+- "Time Spent" card shows cumulative time across all sessions (including soft-deleted ones)
+- Deleting a session soft-deletes it (status = `deleted`), preserving time data for stats
 
 ### 7.3 Task Page — `/task` (Updated)
 
@@ -504,8 +511,11 @@ sits with you while you work, and celebrates when you finish.
 
 **Changes from current:**
 - Report is generated using real timing data from DB (actual vs estimated per task)
+- Report aggregates data from ALL completed sessions, not just the current one
+- The report page fetches `/api/report/aggregate` to get all sessions' tasks before generating
+- Gemini prompt is adjusted for multi-session aggregate analysis when multiple sessions exist
 - Report data is cached in `sessions.report_data` so it doesn't regenerate on revisit
-- `/report/[sessionId]` route allows viewing past reports from dashboard
+- `/report/[sessionId]` route allows viewing a single past session's report from dashboard
 
 ### 7.7 Settings — `/settings` or Modal (Expanded)
 
