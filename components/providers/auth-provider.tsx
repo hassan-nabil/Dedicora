@@ -15,20 +15,32 @@ type AuthState = {
   user: User | null
   profile: Profile | null
   loading: boolean
+  isGuest: boolean
   signOut: () => Promise<void>
+  setGuestMode: (enabled: boolean) => void
 }
 
 const AuthContext = React.createContext<AuthState>({
   user: null,
   profile: null,
   loading: true,
+  isGuest: false,
   signOut: async () => {},
+  setGuestMode: () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null)
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [isGuest, setIsGuest] = React.useState(false)
+
+  // Restore guest mode from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsGuest(localStorage.getItem("dedicora_guest") === "true")
+    }
+  }, [])
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -59,6 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser)
 
       if (currentUser) {
+        // Clear guest mode when real user signs in
+        setIsGuest(false)
+        if (typeof window !== "undefined") localStorage.removeItem("dedicora_guest")
+
         supabase
           .from("profiles")
           .select("id, display_name, avatar_url, onboarding_completed")
@@ -82,11 +98,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
+    setIsGuest(false)
+    if (typeof window !== "undefined") localStorage.removeItem("dedicora_guest")
+  }, [])
+
+  const setGuestMode = React.useCallback((enabled: boolean) => {
+    setIsGuest(enabled)
+    if (typeof window !== "undefined") {
+      if (enabled) localStorage.setItem("dedicora_guest", "true")
+      else localStorage.removeItem("dedicora_guest")
+    }
   }, [])
 
   const value = React.useMemo(
-    () => ({ user, profile, loading, signOut }),
-    [user, profile, loading, signOut]
+    () => ({ user, profile, loading, isGuest, signOut, setGuestMode }),
+    [user, profile, loading, isGuest, signOut, setGuestMode]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

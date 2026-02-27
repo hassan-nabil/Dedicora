@@ -8,6 +8,7 @@ import React from "react"
 function LoginContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error")
+  const fromGuest = searchParams.get("from") === "guest"
   const [loading, setLoading] = React.useState(false)
 
   const handleGoogleLogin = async () => {
@@ -75,6 +76,17 @@ function LoginContent() {
             )}
           </Button>
         </div>
+
+        {fromGuest && (
+          <div className="rounded-xl border border-brand/30 bg-brand/5 px-4 py-3">
+            <p className="text-sm text-brand">
+              Sign up to unlock full features
+            </p>
+            <p className="mt-1 text-xs text-white/40">
+              Get AI productivity reports, session history, dashboard stats, and more.
+            </p>
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-red-400">

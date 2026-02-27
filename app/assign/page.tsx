@@ -12,6 +12,7 @@ import { TopBar } from "@/components/top-bar"
 import { TimeBox } from "@/components/time-box"
 import { ChatPanel } from "@/components/chat-panel"
 import { useFlow, type TaskDuration, type TaskNode } from "@/components/providers/flow-provider"
+import { useAuth } from "@/components/providers/auth-provider"
 import { toSeconds } from "@/lib/time"
 
 const defaultDuration: TaskDuration = { hours: 0, minutes: 20, seconds: 0 }
@@ -41,6 +42,7 @@ function AssignContent() {
   const mode = modeParam === "breakdown" ? "breakdown" : "single"
 
   const { mainTask, setMode, setTaskTree, setTaskList, sessionId, setSessionId, loadSession } = useFlow()
+  const { isGuest } = useAuth()
 
   const [loading, setLoading] = React.useState(false)
   const [summary, setSummary] = React.useState("")
@@ -162,10 +164,10 @@ function AssignContent() {
     }
   }, [loaded, tasks.length, loading, mainTask, fetchTasks])
 
-  // Auto-save tasks to DB (debounced)
+  // Auto-save tasks to DB (debounced) — skip for guests
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   React.useEffect(() => {
-    if (!sessionId || tasks.length === 0) return
+    if (!sessionId || tasks.length === 0 || isGuest) return
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -192,7 +194,7 @@ function AssignContent() {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     }
-  }, [sessionId, tasks])
+  }, [sessionId, tasks, isGuest])
 
   const updateDuration = (index: number, field: keyof TaskDuration, value: number) => {
     setTasks((prev) =>
@@ -253,9 +255,9 @@ function AssignContent() {
       }))
     )
 
-    // Save tasks and update session step
+    // Save tasks and update session step — skip for guests
     const sid = sessionId ?? sessionParam
-    if (sid) {
+    if (sid && !isGuest) {
       try {
         await fetch(`/api/sessions/${sid}/tasks`, {
           method: "POST",
@@ -279,7 +281,7 @@ function AssignContent() {
       }
     }
 
-    router.push(sid ? `/timer?session=${sid}` : "/timer")
+    router.push(sid && !isGuest ? `/timer?session=${sid}` : "/timer")
   }
 
   return (

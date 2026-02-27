@@ -1,8 +1,20 @@
+"use client"
+
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function Home() {
+  const router = useRouter()
+  const { setGuestMode } = useAuth()
+
+  const handleTryIt = () => {
+    setGuestMode(true)
+    router.push("/task")
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-black px-6">
       <div className="w-full max-w-2xl text-center space-y-8">
@@ -28,7 +40,7 @@ export default function Home() {
         </Button>
 
         {/* How it works */}
-        <div className="mt-16 grid gap-8 sm:grid-cols-3 text-left">
+        <div className="mt-16 grid gap-8 sm:grid-cols-4 text-left">
           <div className="space-y-2">
             <div className="text-2xl">📝</div>
             <h3 className="text-sm font-semibold text-white">1. Describe</h3>
@@ -48,6 +60,13 @@ export default function Home() {
             <h3 className="text-sm font-semibold text-white">3. Finish</h3>
             <p className="text-xs text-white/40">
               Get an AI-powered report on your productivity and track your progress.
+            </p>
+          </div>
+          <div className="space-y-2 cursor-pointer" onClick={handleTryIt}>
+            <div className="text-2xl">🚀</div>
+            <h3 className="text-sm font-semibold text-brand">4. Try It</h3>
+            <p className="text-xs text-white/40">
+              Try Dedicora instantly — no sign-up required. Limited features.
             </p>
           </div>
         </div>

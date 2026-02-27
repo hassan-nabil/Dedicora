@@ -7,18 +7,27 @@ import { TopBar } from "@/components/top-bar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useFlow } from "@/components/providers/flow-provider"
+import { useAuth } from "@/components/providers/auth-provider"
 
 const sampleTask = "Complete math and science homework before dinner"
 
 export default function TaskPage() {
   const router = useRouter()
   const { mainTask, setMainTask, setMode, setSessionId } = useFlow()
+  const { isGuest } = useAuth()
   const [creating, setCreating] = React.useState(false)
 
   const handleNavigate = async (mode: "single" | "breakdown") => {
     if (!mainTask.trim()) return
     setMode(mode)
     setCreating(true)
+
+    // Guest mode: skip DB, go straight to local-only assign
+    if (isGuest) {
+      setCreating(false)
+      router.push(`/assign?mode=${mode}`)
+      return
+    }
 
     try {
       // Create session in DB

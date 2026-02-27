@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { ReportChart, type ChartDatum } from "@/components/report-chart"
 import { TaskComparisonChart, type ComparisonDatum } from "@/components/task-comparison-chart"
 import { useFlow } from "@/components/providers/flow-provider"
+import { useAuth } from "@/components/providers/auth-provider"
 import { formatTime, toSeconds } from "@/lib/time"
 
 const fallbackInsights = [
@@ -46,6 +47,14 @@ function ReportContent() {
   const searchParams = useSearchParams()
   const sessionParam = searchParams.get("session")
   const { taskList, sessionId, setSessionId, loadSession } = useFlow()
+  const { isGuest } = useAuth()
+
+  // Block guests from report page
+  React.useEffect(() => {
+    if (isGuest) {
+      router.push("/login?from=guest")
+    }
+  }, [isGuest, router])
 
   const [loading, setLoading] = React.useState(false)
   const [report, setReport] = React.useState<ReportResponse | null>(null)
